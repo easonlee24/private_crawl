@@ -3,7 +3,7 @@ import os
 import shutil
 
 class ChangePdfPath:
-    """This mainly use fir OA
+    """This mainly use for OA
 
     we first download all pdf, and then use this script to move pdf to target path
 
