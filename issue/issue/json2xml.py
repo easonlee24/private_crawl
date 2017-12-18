@@ -172,6 +172,20 @@ class Json2Xml:
         license_text = self.get_article_field(article_info, "license_text")
         copyright_text = self.get_article_field(article_info, "copyright") 
         publish_date  = self.get_article_field(article_info, "publish_date")
+
+        #publish_date比如是2017-12-18这种格式,如果缺少『日』,那么就默认为1
+        publish_date_elems = publish_date.split('-')
+        print "publish_date: %s" % publish_date
+        if len(publish_date_elems) == 1:
+            pass
+        elif len(publish_date_elems) == 2:
+            publish_date = publish_date + "-1"
+            publish_date = "%s-%02d" % (int(publish_date_elems[0]), int(publish_date_elems[1])) 
+        elif len(publish_date_elems) == 3:
+            publish_date = "%s-%02d-%02d" % (publish_date_elems[0], int(publish_date_elems[1]), int(publish_date_elems[2]))
+        else:
+            raise Exception("unexcept publish date format :%s, %s" % (publish_date, self.url))
+
         pdf_link = self.get_article_field(article_info, "pdf_access_url")
         keywords = self.get_article_field(article_info, "keywords")
 
@@ -185,6 +199,12 @@ class Json2Xml:
         xml_file_path = self.get_article_field(article_info, "xml_uri")
         pdf_file_path = self.get_article_field(article_info, "pdf_uri")
         create_time_text = self.get_article_field(article_info, "create_time")
+
+        #create time必须按照格式来，不然xml校验通过不了
+        print "create time :%s" % create_time_text
+        create_time_obj = datetime.datetime.strptime(str(create_time_text), "%Y-%m-%d %H:%M:%S")
+        create_time_text = create_time_obj.strftime('%Y-%m-%dT%H:%M:%S')
+
         creator = self.get_article_field(article_info, "creator")
         collection_id_text = self.get_article_field(article_info, "collection_id")
         source_id_text = self.get_article_field(article_info, "source_id")
