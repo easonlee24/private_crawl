@@ -24,10 +24,24 @@ with open(filename) as fp:
             raise Exception("unexcept meta: %s" % line)
 
         title = datas[5]
-        pdf_path = pdf_dir + "\\" + title
+        origin_title = title
+
+        title = re.sub("[\?]$", "", title)
+        title = re.sub("[:\?,] ?", "_", title)
+        title = re.sub("[&\.%\+\'\"]", "", title)
+        #title = re.sub(" +", "_", title)
+        title = title.replace(" ", "_")
+        #title = title.replace(".", "")# Web 2.0 ==> Web_20
+        #不知道为啥?不能在sub函数里面替换了
+        #title = title.replace("? ", "_")
+        #title = title.replace(": ", "_")
+        #title = title.replace(",", "_")
+        pdf_path = pdf_dir + "\\" + title + ".pdf"
         if os.path.exists(pdf_path):
+            #print "%s exist" % pdf_path
             exist_count = exist_count + 1
         else:
+            print "title: %s, pdf: %s not exist" % (origin_title, pdf_path)
             non_exist_count = non_exist_count + 1
 
 print "exist_count:%d, non_exist_count: %d" % (exist_count, non_exist_count)
