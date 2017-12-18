@@ -8,6 +8,8 @@ import datetime
 import re
 from xml.dom import minidom
 from mysql_helper import MySQLHelper
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 class Json2Xml:
     """Convert metadata result crawled by scrapy to xml
@@ -99,8 +101,8 @@ class Json2Xml:
             author_create_table_sql = "create table if not exists %s("\
                                       "work_id varchar(50) NOT NULL,"\
                                       "author_name varchar(100) NOT NULL,"\
-                                      "institution_name text,"\
-                                      "PRIMARY KEY(work_id, author_name)) DEFAULT CHARSET=utf8;" % self.author_table
+                                      "institution_name varchar(500),"\
+                                      "PRIMARY KEY(work_id, author_name, institution_name)) DEFAULT CHARSET=utf8;" % self.author_table
             self.mysql_helper.execute(author_create_table_sql)
 
 
@@ -125,6 +127,313 @@ class Json2Xml:
         self.output_meta_file.close()
         self.author_meta_file.close()
         print "meta_format_error :%d" % meta_format_error
+
+    def convert_from_database(self):
+        #sql = "select collection_title from article_info where collection_title like '%cadernos de sa%' limit 1"
+        #collection_titles = self.mysql_helper.query_all(sql)
+        #for collection_title in collection_titles:
+        #    collection_title = collection_title['collection_title'].encode("utf-8")
+        #    print collection_title
+        #sys.exit(0)
+
+        article_info_table = "article_info_test"
+        author_sql = "select * from article_author where work_id in (select work_id from %s)" % article_info_table
+        authors = self.mysql_helper.query_all(author_sql)
+        self.author_map = {}
+
+        for author in authors:
+            work_id = author['work_id']
+
+            if work_id not in self.author_map:
+                self.author_map[work_id] = [author]
+            else:
+                self.author_map[work_id].append(author)
+
+        sql = "select * from article_info_test"
+        articles = self.mysql_helper.query_all(sql)
+        for article_info in articles:
+            self.convert_to_xml_from_database(article_info)
+
+    def convert_to_xml_from_database(self, article_info):
+        source_name_str = "Scielo"
+        url = self.get_article_field(article_info, "access_url")
+        self.url = url
+        self.current_url = url
+        print "process %s" % url
+        volume = self.get_article_field(article_info, "volume").replace("vol.", "").strip()
+        issue = self.get_article_field(article_info, "issue").replace("no.", "")
+
+        journal_name = self.get_article_field(article_info, "collection_title").lower().encode("utf-8")
+        available_time_text = 'Before-Publication-OA'
+        doi = self.get_article_field(article_info, "doi")
+        title = self.get_article_field(article_info, "work_title")
+        abstract = self.get_article_field(article_info, "abstract")
+        xlink = self.get_article_field(article_info, "license_url")
+        license_text = self.get_article_field(article_info, "license_text")
+        copyright_text = self.get_article_field(article_info, "copyright") 
+        publish_date  = self.get_article_field(article_info, "publish_date")
+        pdf_link = self.get_article_field(article_info, "pdf_access_url")
+        keywords = self.get_article_field(article_info, "keywords")
+
+        issue_dir = self.get_article_field(article_info, "xml_uri")
+        issue_dir = os.path.dirname(issue_dir)
+        if not os.path.exists(issue_dir):
+            os.makedirs(issue_dir)
+
+        article_id = self.get_article_field(article_info, "work_id")
+        pdf_name = self.get_article_field(article_info, "ro_title")
+        xml_file_path = self.get_article_field(article_info, "xml_uri")
+        pdf_file_path = self.get_article_field(article_info, "pdf_uri")
+        create_time_text = self.get_article_field(article_info, "create_time")
+        creator = self.get_article_field(article_info, "creator")
+        collection_id_text = self.get_article_field(article_info, "collection_id")
+        source_id_text = self.get_article_field(article_info, "source_id")
+        system_id = self.get_article_field(article_info, "system_id")
+        ro_id = self.get_article_field(article_info, "ro_id")
+        issn = self.get_article_field(article_info, "issn")
+        eissn = self.get_article_field(article_info, "eissn")
+        platform_url = self.get_article_field(article_info, "platform_url")
+        language = self.get_article_field(article_info, "language")
+        country_text = self.get_article_field(article_info, "country")
+        publish_year_text = self.get_article_field(article_info, "publish_year")
+
+        #2. create xml for this article
+        doc = minidom.Document()
+        root = doc.createElement('nstl_ors:work_group')
+        doc.appendChild(root)
+        root.setAttribute("xmlns:nstl", "http://spec.nstl.gov.cn/specification/namespace")
+        root.setAttribute("xmlns:nstl_ors", "http://open-resources.nstl.gov.cn/elements/2015")
+        root.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink")
+        root.setAttribute("xmlns:xml", "http://www.w3.org/XML/1998/namespace")
+        root.setAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
+        root.setAttribute("xsi:schemaLocation", "http://open-resources.nstl.gov.cn/elements/2015")
+
+        work_meta = doc.createElement("nstl_ors:work_meta")
+        root.appendChild(work_meta)
+
+        # Add collection meta
+        collection_meta = doc.createElement("nstl_ors:collection_meta")
+        work_meta.appendChild(collection_meta)
+        collection_id = doc.createElement("nstl_ors:collection_id")
+        collection_meta.appendChild(collection_id)
+        text = doc.createTextNode(collection_id_text)
+        collection_id.appendChild(text)
+        collection_id_other = doc.createElement("nstl_ors:collection_id_other")
+        collection_meta.appendChild(collection_id_other)
+        collection_id_other.appendChild(doc.createTextNode(system_id))
+        collection_id_other.setAttribute("identifier-type", 'SystemID')
+        collection_id_other = doc.createElement("nstl_ors:collection_id_other")
+        collection_meta.appendChild(collection_id_other)
+        collection_id_other.appendChild(doc.createTextNode(issn))
+        collection_id_other.setAttribute("identifier-type", 'ISSN')
+        collection_id_other = doc.createElement("nstl_ors:collection_id_other")
+        collection_id_other.appendChild(doc.createTextNode(eissn))
+        collection_id_other.setAttribute("identifier-type", 'EISSN')
+        collection_meta.appendChild(collection_id_other)
+        collection_title = doc.createElement("nstl_ors:collection_title")
+        collection_title.appendChild(doc.createCDATASection(journal_name))
+        collection_meta.appendChild(collection_title)
+        collection_publiction_type = doc.createElement("nstl_ors:publication_type")
+        collection_publiction_type.appendChild(doc.createTextNode("Journal"))
+        collection_meta.appendChild(collection_publiction_type)
+        access_group = doc.createElement("nstl_ors:access_group")
+        collection_meta.appendChild(access_group)
+        access_meta = doc.createElement("nstl_ors:access_meta")
+        access_group.appendChild(access_meta)
+        access_url = doc.createElement("nstl_ors:access_url")
+        access_url.appendChild(doc.createCDATASection(platform_url))
+        access_meta.appendChild(access_url)
+        source_meta = doc.createElement("nstl_ors:source_meta")
+        access_meta.appendChild(source_meta)
+        source_id = doc.createElement("nstl_ors:source_id")
+        source_meta.appendChild(source_id)
+        source_id.appendChild(doc.createTextNode(source_id_text))
+        source_name = doc.createElement("nstl_ors:source_name")
+        source_meta.appendChild(source_name)
+        source_name.appendChild(doc.createCDATASection(source_name_str))
+        source_type = doc.createElement("nstl_ors:souce_type")
+        source_meta.appendChild(source_type)
+        source_type.appendChild(doc.createTextNode("Publisher"))
+
+        work_id = doc.createElement("nstl_ors:work_id")
+        work_meta.appendChild(work_id)
+        work_id.appendChild(doc.createTextNode(article_id))
+        work_id_other = doc.createElement("nstl_ors:work_id_other")
+        work_meta.appendChild(work_id_other)
+        work_id_other.appendChild(doc.createTextNode(doi))
+        work_id_other.setAttribute("identifier-type", "DOI")
+        work_title = doc.createElement("nstl_ors:work_title")
+        work_meta.appendChild(work_title)
+        work_title.appendChild(doc.createCDATASection(title))
+        publication_type = doc.createElement("nstl_ors:publication_type")
+        work_meta.appendChild(publication_type)
+        publication_type.appendChild(doc.createTextNode("JournalArticle"))
+        contributer_group = doc.createElement("nstl_ors:contributer_group")
+        work_meta.appendChild(contributer_group)
+        index = 0
+
+        if article_id not in self.author_map:
+            raise Exception("cannot find author info for work_id :%s" % work_id)
+
+        author_infos = {}
+        for author in self.author_map[article_id]:
+            author_name = author['author_name']
+            institution_name = author['institution_name']
+            
+            if author_name not in author_infos:
+                author_infos[author_name] = [institution_name]
+            else:
+                author_infos[author_name].append(institution_name)
+
+        for author, institutions in author_infos.items():
+            contributer_meta = doc.createElement("nstl_ors:contributer_meta")
+            contributer_group.appendChild(contributer_meta)
+            name = doc.createElement("nstl_ors:name")
+            contributer_meta.appendChild(name)
+            name.appendChild(doc.createCDATASection(author))
+            role = doc.createElement("nstl_ors:role")
+            contributer_meta.appendChild(role)
+            role.appendChild(doc.createTextNode("Author"))
+            affiliation = doc.createElement("nstl_ors:affiliation")
+            contributer_meta.appendChild(affiliation)
+            institution_meta = doc.createElement("nstl_ors:institution-meta")
+            affiliation.appendChild(institution_meta)
+            for institution in institutions:
+                institution_name = doc.createElement("nstl_ors:institution_name")
+                institution_meta.appendChild(institution_name)
+                institution_name.appendChild(doc.createCDATASection(institution))
+
+        keywords_group = doc.createElement("nstl_ors:kwd-group")
+        work_meta.appendChild(keywords_group)
+        keywords = keywords.split(";")
+        for keyword_txt in keywords:
+            if keyword_txt is None:
+                keyword_txt = ""
+            keyword = doc.createElement("nstl_ors:keyword")
+            keywords_group.appendChild(keyword)
+            keyword.appendChild(doc.createCDATASection(keyword_txt)) 
+        
+        language = doc.createElement("nstl_ors:language")
+        work_meta.appendChild(language)
+        language.appendChild(doc.createTextNode("eng"))
+
+        abstract_node = doc.createElement("nstl_ors:abstract")
+        work_meta.appendChild(abstract_node)
+        abstract_node.appendChild(doc.createCDATASection(abstract)) 
+
+        #TODO页码
+        #total_page_number = doc.createElement("nstl_ors:total_page_number")
+        #work_meta.appendChild(total_page_number)
+        #total_page_number.appendChild(doc.createTextNode("1"))
+        #start_page = doc.createElement("nstl_ors:start_page")
+        #work_meta.appendChild(start_page)
+        #start_page.appendChild(doc.createTextNode("1"))
+        #end_page = doc.createElement("nstl_ors:end_page")
+        #work_meta.appendChild(end_page)
+        #end_page.appendChild(doc.createTextNode("1"))
+
+        country = doc.createElement("nstl_ors:country")
+        work_meta.appendChild(country)
+        country.appendChild(doc.createTextNode(country_text))
+
+        publication_year = doc.createElement("nstl_ors:publication_year")
+        work_meta.appendChild(publication_year)
+        publication_year.appendChild(doc.createTextNode(publish_year_text))
+        
+        volumn_node = doc.createElement("nstl_ors:volume")
+        work_meta.appendChild(volumn_node)
+        volumn_node.appendChild(doc.createTextNode(volume))
+
+        issue_node = doc.createElement("nstl_ors:issue")
+        work_meta.appendChild(issue_node)
+        issue_node.appendChild(doc.createTextNode(issue))
+
+        publish_date_node = doc.createElement("nstl_ors:publication_date")
+        work_meta.appendChild(publish_date_node)
+        publish_date_node.appendChild(doc.createTextNode(publish_date))
+
+        self_url = doc.createElement("nstl_ors:self-uri")
+        work_meta.appendChild(self_url)
+        self_url.setAttribute("content-type", "XML")
+        self_url.setAttribute("xlink:href", xml_file_path)
+
+        access_group = doc.createElement("nstl_ors:access_group")
+        work_meta.appendChild(access_group)
+
+        access_meta = doc.createElement("nstl_ors:access_meta")
+        access_group.appendChild(access_meta)
+        access_url = doc.createElement("nstl_ors:access_url")
+        access_meta.appendChild(access_url)
+        access_url.appendChild(doc.createCDATASection(url))
+        permissions_meta = doc.createElement("nstl_ors:permissions_meta")
+        access_meta.appendChild(permissions_meta)
+        copyright_statement = doc.createElement("nstl_ors:copyright-statement")
+        if copyright_text != "":
+            copyright_text = "no copyright"
+        permissions_meta.appendChild(copyright_statement)
+        copyright_statement.appendChild(doc.createCDATASection(copyright_text))
+        license = doc.createElement("nstl_ors:license")
+        permissions_meta.appendChild(license)
+        #TODO 通过检查的没加这个
+        #license.setAttribute("license-type", journal_meta['license_type'])
+        license.setAttribute("xlink:href", xlink)
+        license.appendChild(doc.createCDATASection(license_text))
+        available_time = doc.createElement("nstl_ors:available_time")
+        #TODO
+        #permissions_meta.appendChild(available_time)
+        available_time.appendChild(doc.createTextNode(available_time_text))
+        oa_type = doc.createElement("nstl_ors:OA-type")
+        #permissions_meta.appendChild(oa_type)
+        #TODO
+        #oa_type.appendChild(doc.createTextNode(journal_meta['oa_type']))
+
+        #TODO what's this?
+        related_object_group = doc.createElement("nstl_ors:related_object_group")
+        work_meta.appendChild(related_object_group)
+        related_object = doc.createElement("nstl_ors:related_object")
+        related_object_group.appendChild(related_object)
+        ro_id = doc.createElement("nstl_ors:ro_id")
+        related_object.appendChild(ro_id)
+        #TODO PDF的ID和Article的ID取一样的，其他需求可能不适用
+        ro_id.appendChild(doc.createTextNode(pdf_name))
+        ro_title = doc.createElement("nstl_ors:ro_title")
+        related_object.appendChild(ro_title)
+        ro_title.appendChild(doc.createTextNode(pdf_name))
+        ro_type = doc.createElement("nstl_ors:ro_type")
+        #TODO
+        #related_object.appendChild(ro_type)
+        ro_type.appendChild(doc.createTextNode("CompleteContent"))
+        media_type = doc.createElement("nstl_ors:media_type")
+        related_object.appendChild(media_type)
+        media_type.appendChild(doc.createTextNode("PDF"))
+        ro_self_url = doc.createElement("nstl_ors:self-uri") 
+        related_object.appendChild(ro_self_url)
+        ro_self_url.setAttribute("content-type", "PDF")
+        ro_self_url.setAttribute("xlink:href", pdf_file_path)  
+        ro_access_meta = doc.createElement("nstl_ors:access_meta")
+        related_object.appendChild(ro_access_meta)
+        ro_access_url = doc.createElement("nstl_ors:access_url")
+        ro_access_meta.appendChild(ro_access_url)
+        ro_access_url.appendChild(doc.createCDATASection(pdf_link))
+
+        management_meta = doc.createElement("nstl_ors:management-meta")
+        work_meta.appendChild(management_meta)
+        creator = doc.createElement("nstl_ors:creator")
+        management_meta.appendChild(creator)
+        creator.appendChild(doc.createTextNode("NK"))
+        create_time = doc.createElement("nstl_ors:create_time")
+        management_meta.appendChild(create_time)
+        create_time.appendChild(doc.createTextNode(str(create_time_text)))
+        revision_time = doc.createElement("nstl_ors:revision_time")
+        #TODO
+        #management_meta.appendChild(revision_time)
+        revision_time.appendChild(doc.createTextNode(str(create_time_text)))
+
+        #print article_info
+        print "save to :%s" % xml_file_path
+        xml_str = doc.toprettyxml(indent="  ").encode('utf-8')
+        with open(xml_file_path, "w") as f:
+            f.write(xml_str)
 
     def convert_to_xml(self, article_info):
         source_name_str = "Scielo"
@@ -650,20 +959,26 @@ class Json2Xml:
             if throw_exception:
                 raise Exception ("field %s is empty, url is :%s" % (field, self.url))
             else:
-                return ""
+                ret =  ""
         elif type(article_info[field]) is list:
             if convert:
-                return ",".join(filter(None, article_info[field]))
+                ret =  ",".join(filter(None, article_info[field]))
             else:
-                return article_info[field]
+                ret =  article_info[field]
         else:
-            return article_info[field]
+            ret = article_info[field]
+
+        try:
+            ret = ret.decode('latin1')
+        except Exception as e:
+            pass
+        return ret
 
 if __name__ == "__main__":
     journal_meta = sys.argv[1]
     input_filename = sys.argv[2]
     save_path = sys.argv[3]
 
-
     json2xml = Json2Xml(journal_meta, input_filename, save_path)
-    json2xml.convert()
+    #json2xml.convert()
+    json2xml.convert_from_database()

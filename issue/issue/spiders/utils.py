@@ -90,4 +90,22 @@ class Utils(object):
     @staticmethod
     def current_time():
         return time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        
+
+    @staticmethod
+    def extract_with_xpath(root, xpath_str, default_value = ""):
+        try:
+            result = root.xpath(xpath_str).extract_first().strip()
+        except Exception as e:
+            result = default_value
+
+        return result
+
+    @staticmethod
+    def extract_all_with_xpath(root, xpath_str, default_value = ""):
+        try:
+            result = "".join(root.xpath(xpath_str).extract())
+            result = result.strip()
+        except Exception as e:
+            result = default_value
+
+        return result

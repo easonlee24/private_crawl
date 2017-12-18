@@ -13,7 +13,7 @@ class WileySpider(CrawlSpider):
         'onlinelibrary.wiley.com',
         ]
     start_urls = [
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1365-2435/issues', #102
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1365-2435/issues', #102
         #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1365-2443/issues', #103
         #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1521-6551/issues', #104
         #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1600-048X/issues', #105
@@ -72,6 +72,56 @@ class WileySpider(CrawlSpider):
         #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1938-5463a/issues', #90
         #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1526-968X/issues', #91
         #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1522-239Xb/issues' #92
+
+        #以下是OA的wiley需求
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2198-3844/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1474-9726/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2328-9503/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-2680/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2157-9032/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-7634/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1349-7006/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2191-1363/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2057-4347/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-0904/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2163-8306/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-4877/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1755-263X/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-7758/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-0505/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1757-4684/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-5822/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-703X/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1752-4571/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2048-3694/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2048-7177/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-4049/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2049-6060/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-4527/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1750-2659/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2375-2920/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1007/13539.2190-6009/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1582-4934/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)2040-1124/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2058-3273/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-3909/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2056-4538/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2047-9980/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1939-1676/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1751-7915/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-8827/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2324-9269/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-1058/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1744-4292/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-2238/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2052-1707/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-817X/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2052-4412/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2056-3485/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-3380/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-1161/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1759-7714/issues',
+        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2053-1095/issues'
     ]
 
     rules = (
@@ -82,65 +132,7 @@ class WileySpider(CrawlSpider):
         # Extract links matching 'category.php' (but not matching 'subsection.php')
         # and follow links from them (since no callback means follow=True by default).
         Rule(LinkExtractor(allow=(
-                '.*journal/.*/issues/201[2-7]/$', #102
-                #'.*journal/10.1111/\(ISSN\)1365\-2443/issues\?activeYear=201[2-7]$', #103
-                #'.*journal/10.1002/\(ISSN\)1521\-6551/issues\?activeYear=201[2-7]$', #104
-                #'.*journal/10.1111/\(ISSN\)1600\-048X/issues\?activeYear=201[2-7]$', #105
-                #'.*journal/10.1111/\(ISSN\)1364\-3703/issues\?activeYear=201[2-7]$', #106
-                #'.*journal/10.1111/\(ISSN\)1756\-1051/issues\?activeYear=201[2-7]$', #107
-                #'.*journal/10.1111/\(ISSN\)1600\-0706/issues\?activeYear=201[2-7]$', #108
-                #'.*journal/10.1111/\(ISSN\)1440\-1835/issues\?activeYear=201[2-7]$', #109
-                #'.*journal/10.1111/\(ISSN\)1442\-1984/issues\?activeYear=201[2-7]$', #110
-                #'.*journal/10.1111/\(ISSN\)1439\-0531/issues\?activeYear=201[2-7]$', #111
-                #'.*journal/10.1111/\(ISSN\)1445\-6664/issues\?activeYear=201[2-7]$', #112
-                #'.*journal/10.1111/\(ISSN\)1744\-697X/issues\?activeYear=201[2-7]$', #113
-                #'.*journal/10.1002/\(ISSN\)1938\-5455/issues\?activeYear=201[2-7]$', #115
-                #'.*journal/10.1111/\(ISSN\)1468\-2257/issues\?activeYear=201[2-7]$', #131
-                #'.*journal/10.1111/\(ISSN\)1744\-7976/issues\?activeYear=201[2-7]$', #132
-                #'.*journal/10.1111/\(ISSN\)1471\-0366/issues\?activeYear=201[2-7]$', #133
-                #'.*journal/10.1111/\(ISSN\)1095\-8312/issues\?activeYear=201[2-7]$', #134
-                #'.*journal/10.1002/\(ISSN\)1460\-2075/issues\?activeYear=201[2-7]$', #135
-                #'.*journal/10.1002/\(ISSN\)1469\-3178/issues\?activeYear=201[2-7]$', #136
-                #'.*journal/10.1111/\(ISSN\)1096\-3642/issues\?activeYear=201[2-7]$', #137
-                #'.*journal/10.1111/\(ISSN\)1939\-165X/issues\?activeYear=201[2-7]$', #138
-                #'.*journal/10.1002/\(ISSN\)1099\-0755/issues\?activeYear=201[2-7]$', #40
-                #'.*journal/10.1111/\(ISSN\)1472\-4669/issues\?activeYear=201[2-7]$', #41
-                #'.*journal/10.1111/\(ISSN\)1745\-4514/issues\?activeYear=201[2-7]$', #42
-                #'.*journal/10.1111/\(ISSN\)1745\-4549/issues\?activeYear=201[2-7]$', #43
-                #'.*journal/10.1111/\(ISSN\)1745\-4557/issues\?activeYear=201[2-7]$', #44
-                #'.*journal/10.1111/\(ISSN\)1745\-4565/issues\?activeYear=201[2-7]$', #45
-                #'.*journal/10.1002/\(ISSN\)1520\-6327/issues\?activeYear=201[2-7]$', #46
-                #'.*journal/10.1002/\(ISSN\)1618\-2863/issues\?activeYear=201[2-7]$', #47
-                #'.*journal/10.1111/\(ISSN\)1365\-2052/issues\?activeYear=201[2-7]$', #48
-                #'.*journal/10.1111/\(ISSN\)1469\-8137/issues\?activeYear=201[2-7]$', #49
-                #'.*journal/10.1021/\(ISSN\)1520\-6033/issues\?activeYear=201[2-7]$', #57
-                #'.*journal/10.1111/\(ISSN\)1744\-7429/issues\?activeYear=201[2-7]$', #58
-                #'.*journal/10.1111/\(ISSN\)1440\-169X/issues\?activeYear=201[2-7]$', #59
-                #'.*journal/10.1111/\(ISSN\)1600\-0633/issues\?activeYear=201[2-7]$', #60
-                #'.*journal/10.1111/\(ISSN\)1748\-5967/issues\?activeYear=201[2-7]$', #61
-                #'.*journal/10.1111/\(ISSN\)1479\-8298/issues\?activeYear=201[2-7]$', #62
-                #'.*journal/10.1111/\(ISSN\)1365\-2095/issues\?activeYear=201[2-7]$', #63
-                #'.*journal/10.1111/\(ISSN\)1748\-7692/issues\?activeYear=201[2-7]$', #64
-                #'.*journal/10.1111/\(ISSN\)1365\-3024/issues\?activeYear=201[2-7]$', #65
-                #'.*journal/10.1111/\(ISSN\)1550\-7408/issues\?activeYear=201[2-7]$', #66
-                #'.*journal/10.1111/\(ISSN\)1439\-0426/issues\?activeYear=201[2-7]$', #68
-                #'.*journal/10.1111/\(ISSN\)2041\-210X/issues\?activeYear=201[2-7]$', #69
-                #'.*journal/10.1002/\(ISSN\)1757\-7012/issues\?activeYear=201[2-7]$', #70
-                #'.*journal/10.1002/\(ISSN\)1757\-7799/issues\?activeYear=201[2-7]$', #71
-                #'.*journal/10.1111/\(ISSN\)1759\-7692/issues\?activeYear=201[2-7]$', #72
-                #'.*journal/10.1002/\(ISSN\)1936\-0592/issues\?activeYear=201[2-7]$', #75
-                #'.*journal/10.1002/\(ISSN\)1521\-1878/issues\?activeYear=201[2-7]$', #76
-                #'.*journal/10.1002/\(ISSN\)2042\-5805/issues\?activeYear=201[2-7]$', #77
-                #'.*journal/10.1002/\(ISSN\)2152\-3878/issues\?activeYear=201[2-7]$', #78
-                #'.*journal/10.1111/\(ISSN\)1740\-0929/issues\?activeYear=201[2-7]$', #79
-                #'.*journal/10.1111/\(ISSN\)1939\-7445/issues\?activeYear=201[2-7]$', #81
-                #'.*journal/10.1111/\(ISSN\)1759\-0884/issues\?activeYear=201[2-7]$', #82
-                #'.*journal/10.1111/\(ISSN\)1467\-7652/issues\?activeYear=201[2-7]$', #87
-                #'.*journal/10.1111/\(ISSN\)1439\-0329/issues\?activeYear=201[2-7]$', #88
-                #'.*journal/10.1111/\(ISSN\)1753\-5131/issues\?activeYear=201[2-7]$', #89
-                #'.*journal/10.1002/\(ISSN\)1938\-5463a/issues\?activeYear=201[2-7]$', #90
-                #'.*journal/10.1002/\(ISSN\)1526\-968X/issues\?activeYear=201[2-7]$', #91
-                #'.*journal/10.1002/\(ISSN\)1522\-239Xb/issues\?activeYear=201[2-7]$' #92
+                '.*journal/.*issues\?activeYear=201[5-7]$', #103
             ))),
     )
 
@@ -165,6 +157,13 @@ class WileySpider(CrawlSpider):
     def extract_full_text(self, selector):
         return ("".join(selector.xpath(".//text()").extract()))
 
+    """
+    爬取wiley的详情页
+    """
+    def parse_wiley_issue(self, response):
+        #暂时决定用portia爬取
+        pass
+
     def parse_journal_wiley(self, response):
         self.logger.info('Get an issue page for wiley :%s', response.url)
 
@@ -185,6 +184,8 @@ class WileySpider(CrawlSpider):
                 doi = elems[1].split(':')[1].strip()
 
                 link = urlparse.urljoin(response.url, article.xpath(".//ul[@class='productMenu']/li[3]/a/@href").extract_first())
+                
+                #yield response.follow(article_url, self.parse_wiley_issue, meta = met)
 
                 yield {
                     'journal_id': 'wiley',
