@@ -2,6 +2,8 @@
 import re
 import datetime
 import time
+import uuid
+import os
 
 """
 Provide some utils function to crawl web data
@@ -71,17 +73,53 @@ class Utils(object):
         dates = origin_date.split()
 
         month = dates[1]
-        month_dict = {'Jan' : 1, 'Feb' : 2, 'Mar' : 3, 'Apr' : 4, 'May' : 5, 'June' : 6, 'July' : 7, 'Aug': 8, 'Sept' : 9, 'Sep' : 9, 'Oct' : 10, 'Nov' : 11, 'Dec' : 12}
+        month_dict = {
+                'Jan' : 1, 
+                'January' : 1,
+                'Feb' : 2, 
+                'February' : 2,
+                'Mar' : 3, 
+                'March' :3,
+                'Apr' : 4, 
+                'April' : 4,
+                'May' : 5, 
+                'June' : 6, 
+                'July' : 7, 
+                'Aug': 8,
+                'August' : 8,
+                'Sept' : 9, 
+                'Sep' : 9, 
+                'September' : 9,
+                'Oct' : 10, 
+                'October' : 10,
+                'Nov' : 11, 
+                'November' : 11,
+                'Dec' : 12,
+                'December': 12}
         if month not in month_dict:
             raise Exception("month not expected: %s" % month)
 
         month = month_dict[month]
         date_obj = datetime.datetime.strptime("%s-%s-%s" % (dates[2], month, dates[0]), "%Y-%m-%d")
         return date_obj
+
+    @staticmethod
+    def get_pdf_filename(json_data):
+        """
+        get pdf filename from a json meta data
+        """
+        if "doi" not in json_data:
+            raise Exception("connot get doi from json_data, %s" % json_data)
+
+        doi = Utils.format_value(json_data['doi'])
+        return Utils.doi_to_filname(doi)
     
     @staticmethod
     def doi_to_filname(doi):
         doi = doi.replace("http://dx.doi.org/", "")
+        doi = doi.replace("https://dx.doi.org/", "")
+        doi = doi.replace("http://doi.org/", "")
+        doi = doi.replace("https://doi.org/", "")
         doi = doi.replace("/", "_")
         if doi == "":
             raise Exception("Unexception doi: %s" % doi)
@@ -109,3 +147,28 @@ class Utils(object):
             result = default_value
 
         return result
+
+    @staticmethod
+    def generate_workdir(prefix=""):
+        work_dir = str(uuid.uuid1())
+        if prefix != "":
+            work_dir = prefix + "_" + work_dir
+
+        work_dir = "workdir\\" + work_dir
+
+        print "generate_workdir: %s" % work_dir
+
+        os.makedirs(work_dir)
+
+        return work_dir
+
+    @staticmethod
+    def format_value(value):
+        if type(value) is list:
+            if value[0] is None:
+                value = ""
+            else:
+                value = ",".join(value)
+
+        value = value.strip()
+        return value
