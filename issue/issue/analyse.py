@@ -8,11 +8,10 @@ split = '|'
 
 with open(filename) as fp:
     for line in fp:
-        #try:
-        #    json_date = json.loads(line)
-        #except Exception as e:
-        #    continue
-        json_date = json.loads(line)
+        try:
+            json_date = json.loads(line)
+        except Exception as e:
+            continue
         columns = columnname.split(",")
         line = ""
         for column in columns:

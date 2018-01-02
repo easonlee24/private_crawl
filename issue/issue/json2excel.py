@@ -33,16 +33,16 @@ def write_excel(dataList, row0, path):
 if __name__ == '__main__':
 
     row0 = []
-    print linecache.getline(filename, 1)
-    jsondic= json.loads(linecache.getline(filename, 1))
-    for k in jsondic:
-        row0.append(k)
-    # row0 = [u"country", u"topic", u"resultNum", u"issue_type", u"title", u"chapter_authors_editors", u"authors_editors",
-    #         u"published", u"pages", u"vol", u"no", u"doi", u"booktitle", u"book_isbn", u"book_eisbn", u"issn",
-    #         u"book_doi",
-    #         u"abstract", u"related_regions", u"related_countries", u"related_topics", u"keywords", u"pdf_links",
-    #         u"epub_links",
-    #         u"from"]
+    #首先需要遍历一下所有元数据，获取到元数据中所有出现的列。在转换xls的时候，某列如果不出现在元数据中时，则此列以空字符串填充。
+    with open(filename, 'rb') as fp:
+        for line in fp:
+            line = line.strip()
+            jsondic = json.loads(line)
+
+            for k in jsondic:
+                if k not in row0:
+                    row0.append(k)
+
     dataList = []
     with open(filename, 'rb') as fp:
         for line in fp:
