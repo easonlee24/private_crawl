@@ -37,7 +37,10 @@ if __name__ == '__main__':
     with open(filename, 'rb') as fp:
         for line in fp:
             line = line.strip()
-            jsondic = json.loads(line)
+            try:
+                jsondic = json.loads(line)
+            except Exception as e:
+                continue
 
             for k in jsondic:
                 if k not in row0:
@@ -47,9 +50,13 @@ if __name__ == '__main__':
     with open(filename, 'rb') as fp:
         for line in fp:
             try:
+                strlen = len(line)
+                if strlen > 32672:
+                    print "unexcept str len %d:" % strlen 
+                    continue
                 json_date = json.loads(line)
             except Exception as e:
-                pass
+                continue
             data = []
             for k in row0:
                 column_data = json_date.get(k, "")

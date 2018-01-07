@@ -11,11 +11,11 @@ class EmeraldSpider(scrapy.Spider):
 
     def start_requests(self):
         i = 0
-        final_page = 250 #11.25, total result is 25028
+        final_page = 251 #1.14, total result is 25105
         #final_page = 1
         
         while i <= final_page:
-            start_url = "http://www.emeraldinsight.com/action/doSearch?backfile=on&content=articlesChapters&dateRange=%5B20050101+TO+20171231%5D&earlycite=on&field1=AllField&field2=AllField&field3=AllField&logicalOpe1=OR&logicalOpe2=OR&target=default&text1=agriculture&text2=agricultural&text3=rural&pageSize=100&startPage" + str(i)
+            start_url = "http://www.emeraldinsight.com/action/doSearch?backfile=on&content=articlesChapters&dateRange=%5B20050101+TO+20171231%5D&earlycite=on&field1=AllField&field2=AllField&field3=AllField&logicalOpe1=OR&logicalOpe2=OR&target=default&text1=agriculture&text2=agricultural&text3=rural&pageSize=100&startPage=" + str(i)
             yield Request(start_url, self.parse, dont_filter = True)
             i = i + 1
 

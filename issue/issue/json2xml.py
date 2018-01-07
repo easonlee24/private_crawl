@@ -18,7 +18,7 @@ class Json2Xml:
         self.json_file = json_file
         self.save_file = save_file
         self.today = '20171112'
-        self.now = time.strftime('%Y-%m-%dT%H:%M:%S',time.localtime(time.time()))
+        self.now = time.strftime('%Y-%m-%dT00:00:00',time.localtime(time.time()))
 
         self.all_journal_meta = {}
         self.load_journal_meta(all_journal_meta_xls)
@@ -155,7 +155,7 @@ class Json2Xml:
             self.convert_to_xml_from_database(article_info)
 
     def convert_to_xml_from_database(self, article_info):
-        source_name_str = "Scielo"
+        source_name_str = "Wiley"
         url = self.get_article_field(article_info, "access_url")
         self.url = url
         self.current_url = url
@@ -325,7 +325,7 @@ class Json2Xml:
 
         keywords_group = doc.createElement("nstl_ors:kwd-group")
         work_meta.appendChild(keywords_group)
-        keywords = keywords.split(";")
+        keywords= keywords.split(";")
         for keyword_txt in keywords:
             if keyword_txt is None:
                 keyword_txt = ""
@@ -456,13 +456,14 @@ class Json2Xml:
             f.write(xml_str)
 
     def convert_to_xml(self, article_info):
-        source_name_str = "Scielo"
+        source_name_str = "Wiley"
 
-        url = self.get_article_field(article_info, "url")
+        url = self.get_article_field(article_info, "access_url")
         self.url = url
         volume = self.get_article_field(article_info, "volumn").replace("vol.", "").strip()
         issue = self.get_article_field(article_info, "issue").replace("no.", "")
-        if volume == "" or issue == "": 
+        legex_issue = re.compile(r"[\d-]+")
+        if volume == "" or issue == "" or not legex_issue.match(issue): 
             print "invalid volume and issue(%s, %s): %s" % (volume, issue, self.url)
             return
         journal_name = self.get_article_field(article_info, "journal")
@@ -470,10 +471,12 @@ class Json2Xml:
         title = self.get_article_field(article_info, "title")
         abstract = self.get_article_field(article_info, "abstract", throw_exception = False).replace("View Full-Text", "").strip()
         if abstract == "":
-            print "abstract is empty: %s" % self.url
-            return
+            #print "abstract is empty: %s" % self.url
+            #return
+            pass
         try:
-            date = self.get_article_field(article_info, "date")
+            #date = self.get_article_field(article_info, "publish_date")
+            date = self.get_article_field(article_info, "publish_year")
         except Exception  as e:
             print "date is empty: %s" % self.url
             return
@@ -527,17 +530,26 @@ class Json2Xml:
 
         keywords = self.get_article_field(article_info, "keywords", False, throw_exception = False)
         if (keywords == ""):
-            print "cannot find keywords: %s" % self.url
-            return
+            #print "cannot find keywords: %s" % self.url
+            keywords = []
 
         try:
             authors = self.get_article_field(article_info, "author", False)
-            author_sup = self.get_article_field(article_info, "author_sup", False)
-            author_sup = self.format_author_sup(len(authors), author_sup)
             author_affiliation = self.get_article_field(article_info, "author_affiliation", False)
             author_affiliation = filter(lambda x: self.filter_author_affiliation(x), author_affiliation)
+            if "author_sup" in article_info:
+                author_sup = self.get_article_field(article_info, "author_sup", False)
+                author_sup = self.format_author_sup(len(authors), author_sup)
+            else:
+                #如果没有author_sup这个字段，说明作者作何机构是一一对应的,生成一个假的author_sup
+                #此时，authors 和 author_affiliation的size应该一样
+                author_sup = range(1, len(authors) + 1)
+                if len(authors) != len(author_affiliation):
+                    print("url %s, size of authors(%d) and author_affiliation(%d) should be equal when author_sup not set!"\
+                    % (self.url, len(authors), len(author_affiliation)))
+                    return
         except Exception as e:
-            print "author_affiliation is miss :%s" % self.url
+            print "author_affiliation fail :%s, reson %s" % (self.url, e.message)
             return
         
         output_meta = {}
@@ -596,7 +608,11 @@ class Json2Xml:
         work_meta.appendChild(collection_meta)
         collection_id = doc.createElement("nstl_ors:collection_id")
         collection_meta.appendChild(collection_id)
-        text = doc.createTextNode(journal_meta['collection_id'])
+        try:
+            text = doc.createTextNode(journal_meta['collection_id'])
+        except Exception:
+            print "no collection id journal, url %s" % self.url
+            return
         collection_id.appendChild(text)
         collection_id_other = doc.createElement("nstl_ors:collection_id_other")
         collection_meta.appendChild(collection_id_other)
@@ -664,7 +680,7 @@ class Json2Xml:
             role.appendChild(doc.createTextNode("Author"))
             affiliation = doc.createElement("nstl_ors:affiliation")
             contributer_meta.appendChild(affiliation)
-            affiliation_index = author_sup[index]
+            affiliation_index = str(author_sup[index])
             institution_meta = doc.createElement("nstl_ors:institution-meta")
             affiliation.appendChild(institution_meta)
             for aff_index in affiliation_index.split(','):
@@ -853,7 +869,7 @@ class Json2Xml:
         output_meta['collection_title'] = journal_name
         output_meta['platform_url'] = journal_meta['platform_url']
         output_meta['source_name'] = 'Molecular Diversity Preservation International'
-        output_meta['keywords'] = keywords
+        output_meta['keywords'] = ";".join(keywords)
         output_meta['language'] = 'eng'
         output_meta['abstract'] = abstract
         output_meta['country'] = journal_meta['country']
@@ -907,7 +923,9 @@ class Json2Xml:
             if journal in self.all_journal_meta:
                raise Exception("journal find multiple meta info: %s" % journal)
 
-            print "load journal :%s" % journal.encode("utf-8")
+            #print "load journal :%s" % journal.encode("utf-8")
+
+            print "%s,%s" % (rowValues[9], rowValues[23])
 
             self.all_journal_meta[journal] = {
             'journal_id': rowValues[0],
@@ -1000,5 +1018,5 @@ if __name__ == "__main__":
     save_path = sys.argv[3]
 
     json2xml = Json2Xml(journal_meta, input_filename, save_path)
-    #json2xml.convert()
-    json2xml.convert_from_database()
+    json2xml.convert()
+    #json2xml.convert_from_database()
