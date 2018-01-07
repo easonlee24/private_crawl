@@ -178,10 +178,16 @@ class WileySpider(CrawlSpider):
             for article in articles:
                 article_url = urlparse.urljoin(response.url, article.xpath(".//div[@class='citation tocArticle']/a/@href").extract_first())
                 title = article.xpath(".//div[@class='citation tocArticle']/a/text()").extract_first()
-                page = article.xpath(".//div[@class='citation tocArticle']/a/span/text()").extract_first().split()[1].strip(')')
+                try:
+                    page = article.xpath(".//div[@class='citation tocArticle']/a/span/text()").extract_first().split()[1].strip(')')
+                except Exception as e:
+                    page = ""
 
-                elems = article.xpath(".//div[@class='citation tocArticle']/p[last()]/text()").extract_first().split('|')
-                doi = elems[1].split(':')[1].strip()
+                try:
+                    elems = article.xpath(".//div[@class='citation tocArticle']/p[last()]/text()").extract_first().split('|')
+                    doi = elems[1].split(':')[1].strip()
+                except Exception as e:
+                    doi = ""
 
                 link = urlparse.urljoin(response.url, article.xpath(".//ul[@class='productMenu']/li[3]/a/@href").extract_first())
                 

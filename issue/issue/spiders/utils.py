@@ -4,7 +4,7 @@ import datetime
 import time
 import uuid
 import os
-
+import xlrd
 """
 Provide some utils function to crawl web data
 """
@@ -154,7 +154,7 @@ class Utils(object):
         if prefix != "":
             work_dir = prefix + "_" + work_dir
 
-        work_dir = "workdir\\" + work_dir
+        work_dir = os.path.join("workdir", work_dir)#"workdir\\" + work_dir
 
         print "generate_workdir: %s" % work_dir
 
@@ -163,8 +163,11 @@ class Utils(object):
         return work_dir
 
     @staticmethod
-    def format_value(value):
+    def format_value(value, convert=True):
         if type(value) is list:
+            if not convert:
+                return value
+
             if value[0] is None:
                 value = ""
             else:
@@ -172,3 +175,45 @@ class Utils(object):
 
         value = value.strip()
         return value
+
+    @staticmethod
+    def load_journal_meta(all_journal_meta_xls):
+        """
+        Load all journal meta info from xls file
+
+        Return List
+        """
+        all_journal_meta = {}
+        data = xlrd.open_workbook(all_journal_meta_xls)
+
+        #TODO 其他需求journal元数据表可能不是这样
+        table = data.sheets()[2] #3rd sheet is main sheet
+        nrows = table.nrows
+        ncols = table.ncols
+        for i in xrange(0,nrows):
+            #TODO 前两行没用，其他需求可能不适用
+            if (i <= 1):
+                continue
+
+            rowValues= table.row_values(i)
+
+            journal = rowValues[9].lower().strip()
+            if journal in all_journal_meta:
+               raise Exception("journal find multiple meta info: %s" % journal)
+
+            all_journal_meta[journal] = {
+            'journal_id': rowValues[0],
+            'issn': rowValues[1],
+            'eissn': rowValues[2],
+            'country': rowValues[5],
+            'language': rowValues[6],
+            'license_type': rowValues[17],
+            'license_text': rowValues[18],
+            'oa_type': rowValues[19], 
+            'available_time': rowValues[20],
+            'journal_url': rowValues[23],
+            'platform_url': rowValues[27],
+            'system_id': rowValues[40],
+            'collection_id': rowValues[43],
+            'source_id': rowValues[44]}
+        return all_journal_meta
