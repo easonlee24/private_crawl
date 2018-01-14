@@ -4,6 +4,7 @@ import datetime
 import time
 import uuid
 import os
+import json
 
 """
 Provide some utils function to crawl web data
@@ -108,10 +109,17 @@ class Utils(object):
         """
         get pdf filename from a json meta data
         """
+        guoyan_pattern = re.compile(".*docid=(?P<docid>-?\d+)&.*")
         if "doi" not in json_data:
-            raise Exception("connot get doi from json_data, %s" % json_data)
-
-        doi = Utils.format_value(json_data['doi'])
+            access_url = json_data["access_url"]
+            #国研网没有doi，从access_url里面获取docid
+            match = guoyan_pattern.match(access_url)
+            if match:
+                doi = str(match.group("docid"))
+            else:
+                raise Exception("connot get doi from json_data, %s" % json_data)
+        else:
+            doi = Utils.format_value(json_data['doi'])
         return Utils.doi_to_filname(doi)
     
     @staticmethod
@@ -127,7 +135,7 @@ class Utils(object):
 
     @staticmethod
     def current_time():
-        return time.strftime('%Y-%m-%d', time.localtime(time.time()))
+        return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
 
     @staticmethod
     def extract_with_xpath(root, xpath_str, default_value = ""):
@@ -170,5 +178,17 @@ class Utils(object):
             else:
                 value = ",".join(value)
 
+        if value is None:
+            value = ""
+
         value = value.strip()
         return value
+
+    @staticmethod
+    def is_json_string(str):
+        try:
+            json_data = json.loads(str)
+        except Exception:
+            return False
+        return True
+
