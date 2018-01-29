@@ -43,7 +43,6 @@ class EIUSpider(scrapy.Spider):
 
     def parse_pdf_links(self, response):
         links = response.xpath("//div[@class='PageTitleGray']//following-sibling::table[1]//tr[@valign='top']")
-
         for link in links:
             pdf_link = link.xpath(".//a[2]/@href").extract_first()
             pdf_link = urlparse.urljoin(response.url, pdf_link)

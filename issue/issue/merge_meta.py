@@ -19,7 +19,7 @@ class MergeMeta(object):
                     json_data = json.loads(line)
                 except Exception as e:
                     continue
-                url = json_data['url']
+                url = json_data['article_url']
                 sup_meta_dict[url] = json_data
 
         with open(self.origin_meta_file) as f:
@@ -30,7 +30,11 @@ class MergeMeta(object):
                 except Exception as e:
                     continue
 
-                url = json_data['url']
+                try: 
+                    url = json_data['url']
+                except Exception as e:
+                    url = json_data['access_url']
+                    
                 if url not in sup_meta_dict:
                     print json.dumps(json_data)
                     continue
@@ -53,7 +57,8 @@ class MergeMeta(object):
                             continue
                         json_data['publish_date'] = publish_date
                     elif key != 'url':
-                        json_data[key] = sup_data[key]
+                        if key not in json_data or json_data[key] == "" or (type(json_data[key]) is list and json_data[key][0] is None):
+                            json_data[key] = sup_data[key]
                 print json.dumps(json_data)
 
     def convert_publish_date(self, origin_publish_date):

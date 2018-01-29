@@ -1,6 +1,7 @@
 import sys
 import json
 import re
+from spiders.utils import Utils
 
 filename = sys.argv[1]
 columnname = sys.argv[2]
@@ -16,12 +17,9 @@ with open(filename) as fp:
         line = ""
         for column in columns:
             try:
-                data = json_date[column]
+                data = Utils.format_value(json_date[column])
             except Exception as e:
                 data = ""
-
-            if type(data) is list:
-                data = "".join(data)
 
             if column == 'url':
                 data = re.sub("\?journalCode=.*", "", data)

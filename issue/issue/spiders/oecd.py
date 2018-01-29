@@ -41,7 +41,7 @@ class OECDSpider(scrapy.Spider):
 
     def parse(self, response):
         #meta = {'theme': 'theme', "country": 'country', 'issue_type': 'issue_type', 'result_count': 11, 'result_url' : 'result_url'}
-        #url = "http://www.oecd-ilibrary.org/agriculture-and-food/agricultural-policy-monitoring-and-evaluation-2015/australia_agr_pol-2015-6-en"
+        #url = "http://www.oecd-ilibrary.org/development/atlas-of-gender-and-development/zimbabwe_9789264077478-136-en"
         #yield response.follow(url, self.parse_chapter, meta = meta)
         #return
         base_url = "http://www.oecd-ilibrary.org/search?form_name=advanced&value1=*&option1=fullText&operator2=AND&value2=&option2=fullText&operator3=AND&value3=&option3=fullText&option4=year_from&value4=2005&option5=year_to&value5=2016&option24=oecd_imprintIGO&value24=&option6=imprint&value6=http%3A%2F%2Foecd.metastore.ingenta.com%2Fcontent%2Fimprint%2Foecd&option7=lang&option8=lang&option9=lang&operator8=OR&operator9=OR&value7=en&value9=&option25=includeResource&option26=includeResource&option27=includeResource&option28=includeResource&option29=includeResource&option30=includeResource&option31=includeResource&option32=includeResource&option33=includeResource&option34=includeResource&option35=includeResource&option36=includeResource&option37=includeResource&option38=includeResource&operator26=OR&operator27=OR&operator28=OR&operator29=OR&operator30=OR&operator31=OR&operator32=OR&operator33=OR&operator34=OR&operator35=OR&operator36=OR&operator37=OR&operator38=OR&value25=BookSeries&value26=Book&value27=Chapter&value31=Article&value37=WorkingPaperSeries&value38=WorkingPaper&value20=18147364%2C15615537&option20=factbooks&option18=sort&value18=&refinelevel=0&option21=discontinued&value21=true&option22=excludeKeyTableEditions&value22=true&isSelectedIGO=true"
@@ -74,7 +74,7 @@ class OECDSpider(scrapy.Spider):
             theme_choices = [
                 ["%2Fcontent%2Fsubject%2F30", "Agriculture and Food"],
                 ["%2Fcontent%2Fsubject%2F40", "Development"],
-                ["%2Fcontent%2Fsubject%2F33", "Employment"],
+                ["%2Fcontent%2Fsubject%2F36", "Environment"],
                 ["%2Fcontent%2Fsubject%2F78", "Trade"],
                 ["%2Fcontent%2Fsubject%2F46", "Urban, Rural and Regional Development"]]
 
@@ -189,6 +189,7 @@ class OECDSpider(scrapy.Spider):
                 "dc:contributor" : authors,
                 "EISBN" : isbn,
                 "doi" : doi,
+                "authors": authors,
                 "abstracts" : "",
                 "subject" : response.meta['theme'],
                 "subject_country" : response.meta['country'],
@@ -205,6 +206,8 @@ class OECDSpider(scrapy.Spider):
         issue_info['acquisition_time'] = Utils.current_time()
 
         yield issue_info
+
+        return
 
         meta = {}
         pdf_link = issue_info['pdf_url']
@@ -249,6 +252,7 @@ class OECDSpider(scrapy.Spider):
             "dc:contributor" : authors,
             "EISBN" : isbn,
             "doi" : doi,
+            "authors" : authors,
             "abstracts" : "",
             "subject" : response.meta['theme'],
             "subject_country" : response.meta['country'],
@@ -304,6 +308,7 @@ class OECDSpider(scrapy.Spider):
             "doi" : doi,
             "volumn" : volumn,
             "issue" : issue,
+            "authors" : authors,
             "abstracts" : "",
             "subject" : response.meta['theme'],
             "subject_country" : response.meta['country'],
@@ -315,6 +320,8 @@ class OECDSpider(scrapy.Spider):
             "document_type" : response.meta['issue_type'],
         }
         yield issue_info
+
+        return
 
         meta = {}
         if pdf_link != "":
@@ -368,6 +375,7 @@ class OECDSpider(scrapy.Spider):
             "dc:contributor" : authors,
             "doi" : chapter_doi,
             "issue" : no,
+            "authors" : authors,
             "abstracts" : "",
             "keywords" : keywords,
             "subject" : response.meta['theme'],
@@ -381,6 +389,7 @@ class OECDSpider(scrapy.Spider):
         }
 
         yield issue_info
+        return
 
         meta = {}
         if pdf_link != "":
@@ -400,7 +409,7 @@ class OECDSpider(scrapy.Spider):
         language = self.extract_with_xpath(response, "//*[@id='ui-content']//div[@class='langdiv langdivnofloat']//span[2]/text()")
         pdf_link = self.extract_with_xpath(response, "//*[@id='ui-content']/div[2]/div[2]/ul/li/a[@class='pdf']/@href")
         epub_link = self.extract_with_xpath(response, "//*[@id='ui-content']/div[2]/div[2]/ul/li/a[@class='epub']/@href")
-        authors = self.extract_with_xpath(response, "//div[@class='authors']//dd/text()")
+        authors = self.extract_with_xpath(response, "//*[@class='authors']//dd/text()")
         date_text = self.extract_with_xpath(response, "//*[@id='content']/div/div/div/div[2]/div[1]/div[2]/div[3]/div[3]/dl/dd[1]/text()")
         date_obj = Utils.strptime(date_text)
         release_date = date_obj.strftime("%Y-%m-%d")
@@ -432,6 +441,7 @@ class OECDSpider(scrapy.Spider):
             "release_date" : release_date,
             "title" : chapter_title,
             "doi" : chapter_doi,
+            "authors" : authors,
             "abstracts" : abstracts,
             "subject" : response.meta['theme'],
             "subject_country" : response.meta['country'],
@@ -444,6 +454,8 @@ class OECDSpider(scrapy.Spider):
         }
 
         yield issue_info
+
+        return
 
         meta = {}
         if pdf_link != "":
