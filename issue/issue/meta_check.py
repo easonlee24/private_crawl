@@ -37,6 +37,7 @@ class MetaCheck(object):
             #"issue",
             #"pages"
             ]
+  
         self.pass_meta_map = {} # used to uniq
         
         #把一些不规则的key, 都归一化为统一的key
@@ -113,6 +114,7 @@ class MetaCheck(object):
                     key = key.strip(":").strip()
                     value = Utils.format_value(value)
                     if value == "" and key in self.required_key:
+
                         if key == "publish_year":
                             publish_data = self._get_value(json_data, "publish_date")
                             if publish_data != "":
@@ -215,7 +217,6 @@ class MetaCheck(object):
                 download_urls.append(url)
 
         #print download_urls
-
         with open(self.args.url_file) as f: 
             for line in f:
                 line = line.strip()
