@@ -17,7 +17,7 @@ NEWSPIDER_MODULE = 'issue.spiders'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
-USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1'
+#USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -28,10 +28,10 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 5
+DOWNLOAD_DELAY = 1
 # The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 3
-CONCURRENT_REQUESTS_PER_IP = 3
+CONCURRENT_REQUESTS_PER_DOMAIN = 5
+CONCURRENT_REQUESTS_PER_IP = 5
 
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
@@ -91,3 +91,11 @@ CONCURRENT_REQUESTS_PER_IP = 3
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 FEED_EXPORT_ENCODING = 'utf-8'
+COOKIES_ENABLES = False
+#取消默认的useragent,使用新的useragent
+DOWNLOADER_MIDDLEWARES = {
+        'scrapy.downloadermiddleware.useragent.UserAgentMiddleware' : None,
+        'scrapy.downloadermiddleware.redirect.RedirectMiddleware' : None,
+        'issue.rotate_useragent.RotateUserAgentMiddleware' : 500,
+        'issue.custom_redirect.CustomRedirectMiddleware' : 600
+}

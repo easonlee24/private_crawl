@@ -31,23 +31,13 @@ class MetaCheck(object):
         self.pdf_exist = 0
         self.pdf_non_exist = 0
 
-        self.required_keys = [
-            "title",
-            "journal",
-            "volumn",
-            "issue",
-            "publish_date",
-
-            #"abstract",
-            #"keywords"
-        ]
-
-        self.nullable_key = [
+        self.required_key = [
             #"abstracts",
             #sage的 issue和pages有些确实为空。。。
             #"issue",
-            #"pages'
-        ]
+            #"pages"
+            ]
+  
         self.pass_meta_map = {} # used to uniq
         
         #把一些不规则的key, 都归一化为统一的key
@@ -122,8 +112,9 @@ class MetaCheck(object):
                 fail = False
                 for key, value in json_data.iteritems():
                     key = key.strip(":").strip()
-                    value = Utils.format_value(value, self.convert)
-                    if value == "" and key not in self.nullable_key:
+                    value = Utils.format_value(value)
+                    if value == "" and key in self.required_key:
+
                         if key == "publish_year":
                             publish_data = self._get_value(json_data, "publish_date")
                             if publish_data != "":
@@ -153,8 +144,8 @@ class MetaCheck(object):
                 if access_url in self.pass_meta_map:
                     title = self._get_value(json_data, "title")
                     if title != self.pass_meta_map[access_url]:
-                        pass
-                        #raise Exception("same url with different title, not gonna happen :%s" % access_url)
+                        #pass
+                        raise Exception("same url with different title, not gonna happen :%s" % access_url)
                     self.dup = self.dup + 1
                     continue
 
@@ -226,7 +217,6 @@ class MetaCheck(object):
                 download_urls.append(url)
 
         #print download_urls
-
         with open(self.args.url_file) as f: 
             for line in f:
                 line = line.strip()
@@ -292,7 +282,8 @@ class MetaCheck(object):
         publish_data = self._get_value(json_data, "publish_date")
         if "publish_year" not in json_data or json_data["publish_year"] == "":
             #if publish data is also empty, there is no way to get publish_year
-            json_data["publish_year"] = publish_data.split()[-1]
+            if "publish_date" in json_data:
+                json_data["publish_year"] = publish_data.split()[-1]
 
         #keywords = self._get_value(json_data, "keywords")
         #json_data["keywords"] = keywords.replace("Keywords", "").strip()
@@ -309,13 +300,17 @@ class MetaCheck(object):
             convert_data[key] = value
 
         if self.args.pdf_dir is not None:
-            filename = Utils.get_pdf_filename(json_data) + ".pdf"
-            pdf_path = self.args.pdf_dir + "\\" + filename
+            filename = Utils.get_pdf_filename(json_data)
+            pdf_path = os.path.join(self.args.pdf_dir, filename + ".pdf")  
+            txt_path = os.path.join(self.args.pdf_dir, filename + ".txt")
             if os.path.exists(pdf_path):
-                convert_data["pdf_path"] = filename
+                convert_data["pdf_path"] = filename + ".pdf"
+                self.pdf_exist = self.pdf_exist + 1
+            elif os.path.exists(txt_path):
+                convert_data["pdf_path"] = filename + ".txt"
                 self.pdf_exist = self.pdf_exist + 1
             else:
-                #print "pdf path %s not exist" % pdf_path
+                #print "pdf path(%s) or txt path(%s) not exist" % (pdf_path, txt_path)
                 convert_data["pdf_path"] = "wrong"
                 self.pdf_non_exist = self.pdf_non_exist + 1
                 pdf_link = self._get_value(json_data, "pdf_url")

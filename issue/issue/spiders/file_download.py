@@ -10,6 +10,7 @@ import os
 import errno
 import random
 import time
+import json
 from scrapy.http.request import Request
 from utils import  Utils
 
@@ -39,6 +40,9 @@ download_url
 download_url
 download_url
 
+format3:
+[json_data]
+[json_data]
 .......
 1. 如果没有传入save_dir, 那么就写到当前目录
 2. 格式2中，downliad_url里面应该包含doi,这样filename默认就是doi
@@ -46,20 +50,25 @@ download_url
 class FileDownload(scrapy.Spider):
     name = "file_download"
 
-    def __init__(self, url_file=None, save_dir = None, download_txt = "False", start_count = 0, *args, **kwargs):
+    def __init__(self, url_file=None, save_dir = None, download_txt = "False", force_download = "False", is_worldbank = "False", start_count = 0, max_count = None, *args, **kwargs):
         super(FileDownload, self).__init__(*args, **kwargs)
         self.url_file = url_file
         self.download_txt = download_txt.lower() == "true"
+        self.force_download = force_download.lower() == "true"
+        self.is_worldbank = is_worldbank.lower() == "true"
         if save_dir is None:
             self.save_dir = ""
         else:
             self.save_dir = save_dir
-        self.start_count = start_count
+        self.start_count = int(start_count)
         self.pdf_error_file_write = open("./not_pdf_url", "w")
         self.pdf_error_count = 0
         self.download_count = 0
         self.txt_download_count = 0
         self.pdf_exist_count = 0
+        self.meta_error = 0
+        self.request_count = 0
+        self.max_count = max_count
 
     def start_requests(self):
         download_count = 0
@@ -72,14 +81,26 @@ class FileDownload(scrapy.Spider):
                     continue
 
                 line = line.strip()
-                infos = line.split('|')
-                if len(infos) == 1:
-                    download_url = infos[0].replace("full", "pdf")
-                    #filename = "_".join(download_url.split('/')[-2:]) + ".pdf"
-                    filename = "_".join(download_url.split('/')[-1:]) + ".pdf"
+                if Utils.is_json_string(line):
+                    json_data = json.loads(line)
+                    try:
+                        doi = Utils.format_value(json_data['doi']).replace("DOI:", "").strip()
+                        filename = Utils.doi_to_filname(doi) + ".pdf"
+                    except Exception:
+                        self.meta_error = self.meta_error + 1
+                        self._print_download_status()
+                        continue
+                    download_url = Utils.format_value(json_data['pdf_link'])
+                    #download_url = json_data['pdf_url']
                 else:
-                    filename = infos[0]
-                    download_url = infos[1].strip()
+                    infos = line.split('|')
+                    if len(infos) == 1:
+                        download_url = infos[0].replace("full", "pdf")
+                        #filename = "_".join(download_url.split('/')[-2:]) + ".pdf"
+                        filename = "_".join(download_url.split('/')[-1:]) + ".pdf"
+                    else:
+                        filename = infos[0]
+                        download_url = infos[1].strip()
                 if download_url == '':
                     continue
                 meta = {'filename': filename}
@@ -98,9 +119,17 @@ class FileDownload(scrapy.Spider):
                 else:
                     print "pdf not exist %s" % pdf_path
 
+                self.request_count = self.request_count + 1
+                if self.max_count is not None and self.request_count > int(self.max_count):
+                    print "reach max request count: %s" % self.max_count
+                    break
+                else:
+                    print "max count :%s, current count: %s" % (self.max_count, self.request_count)
+
                 try:
-                    #download_url = download_url + "?download=true"
-                    #time.sleep(random.randint(30,60))
+                    if self.is_worldbank:
+                        download_url = download_url + "?download=true"
+                        #time.sleep(random.randint(30,60))
                     yield Request(download_url, self.download_file, meta = meta, dont_filter=True)
                 except Exception as e:
                     pass
@@ -112,6 +141,9 @@ class FileDownload(scrapy.Spider):
         if self.save_dir != "":
             filename = self.save_dir + "\\" + filename
 
+        print "status is :%s" % response.status
+
+        #是否是pdf文档还真的不太好判断，比如对于wiley的
         if not self._content_is_pdf(response):
             if not self.download_txt:
                 self.pdf_error_file_write.write(response.url)
@@ -124,7 +156,8 @@ class FileDownload(scrapy.Spider):
             content = self.download_guoyan_content(response)
             self.txt_download_count = self.txt_download_count + 1
             if content == "":
-                raise Exception("cannot get content from url: %, source url :%s" %  (response.url, response.request.url))
+                print "cannot get content from url: %s, source url :%s" %  (response.url, response.request.url)
+                return
 
         else:
             filename = filename.replace(".txt", ".pdf")
@@ -139,6 +172,8 @@ class FileDownload(scrapy.Spider):
         f.close()
 
     def _content_is_pdf(self, response):
+        #print "check if is pdf, print header:"
+        #print response.headers
         content_type = response.headers['Content-Type']
         if content_type.find("application/pdf") != -1:
             return True
@@ -150,14 +185,20 @@ class FileDownload(scrapy.Spider):
         return False
 
     def _print_download_status(self):
-        print "%s pdf_error_count is :%d, exist_count: %d, pdf_download_count is %d, txt_download_count: %d" % (Utils.current_time(), self.pdf_error_count, self.pdf_exist_count, self.download_count, self.txt_download_count)
+        print "%s:meta_error_count is :%d, pdf_error_count is :%d, exist_count: %d, pdf_download_count is %d, txt_download_count: %d" \
+              % (Utils.current_time(), self.meta_error, self.pdf_error_count, self.pdf_exist_count, self.download_count, self.txt_download_count)
+
 
     #国研网有的详情页是需要从网页上下载得到txt文件
     def download_guoyan_content(self, response):
-        paras = response.xpath("//*[@id='docContent']/p")
+        paras = response.xpath("//*[@id='docContent']//p")
         texts = ""
         for para in paras:
             para_content = " ".join([v.replace("\n", " ") for v in para.xpath(".//text()").extract()]).strip()
             if para_content != "":
                 texts += para_content + "\n"
+
+        if len(paras) == 0 or texts == "":
+            txt = Utils.get_all_inner_texts(response, "//*[@id='docContent']")
+            return txt
         return texts
