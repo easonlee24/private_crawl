@@ -31,7 +31,7 @@ class MetaCheck(object):
         self.pdf_exist = 0
         self.pdf_non_exist = 0
 
-        self.required_key = [
+        self.required_keys = [
             #"abstracts",
             #sage的 issue和pages有些确实为空。。。
             #"issue",
@@ -72,7 +72,84 @@ class MetaCheck(object):
         self.bad_meta_writer = open(self.bad_meta_file, "w")
         self.miss_pdf_writer = open(self.miss_pdf_file, "w")
 
+    def _transform(self, json_data):
+        access_url = self._get_value(json_data, "access_url")
 
+        if access_url.find("intechopen.com") != -1:
+            json_data =  self._transform_intechopen(json_data)
+
+        return json_data
+
+    def _transform_intechopen(self, json_data):
+        item_type = self._get_value(json_data, "_type")
+        if item_type == "book_item":
+            #book主要是从content里面抽取一些字段出来
+            content = self._get_value(json_data, "content")
+            #Edited by Aldemaro Romero and Edward O. Keith , ISBN 978-953-51-0844-3, 248 pages, Publisher: InTech, Chapters published November 07, 2012 under CC BY 3.0 license DOI: 10.5772/2731 Edited Volume
+            #Authored by Amira Abdelrasoul, Huu Doan and Ali Lohi , ISBN 978-953-51-3662-0, Print ISBN 978-953-51-3661-3, 232 pages, Publisher: InTech, Chapters published December 06, 2017 under CC BY-NC 4.0 license DOI: 10.5772/65691 Monograph
+            #ISBN 978-953-51-3376-6, Print ISBN 978-953-51-3375-9, 262 pages, Publisher: InTech, Chapters published August 23, 2017 under CC BY 3.0 license DOI: 10.5772/intechopen.68449 Monograph
+            content_regex = re.compile("(?P<authors>(Edited|Authored) by .*, )?ISBN (?P<isbn>[\w-]+), (?P<print_isbn>Print ISBN .*, )?(?P<pages>\d+) pages, Publisher: (?P<publisher>.*), Chapters published (?P<publish_date>.*) under (?P<license_type>.* license).*")
+            match = content_regex.match(content)
+            if not match:
+                print json_data
+                raise Exception("content not match regex: %s" % content)
+
+            json_data['dc:creater'] = match.group("authors")
+            json_data['eisbn'] = match.group("isbn")
+            json_data['hardcover_PISBN'] = match.group("print_isbn")
+            json_data['page'] = match.group("pages")
+            json_data['publisher'] = match.group("publisher")
+            json_data['release_date'] = Utils.strptime(match.group("publish_date")).strftime("%Y-%m-%d")
+            json_data['license_type'] = match.group("license_type")
+
+            json_data.pop('chapters', None)
+            json_data.pop('content', None)
+
+        elif item_type == "chapter_item":
+            #chapter主要是抽取处理一下作者机构
+            if self._key_exist(json_data, "author_affliication"):
+                #表示
+                author = self._get_value(json_data, "author")
+                start_chars = "<div class=\"authors-front\">"
+                end_chars = "</div>"
+                author_content = Utils.extract_chars(author, start_chars, end_chars)
+                if author_content == "":
+                    #还有获取不到作者的情况..
+                    author_content = self._get_value(json_data, "author_field")
+
+                #有的作者可能有多个sup的情况,比如<sup>1, </sup><sup>2</sup>,需要归一化
+                author_content = re.sub("<sup>(\d*)(, ){0,1}</sup>", "<sup>\g<1></sup>", author_content)
+                #有的作者还是以and分隔的
+                author_content.replace("and", ",")
+                author_elems = author_content.split(",")
+
+                authors = []
+                author_sups = []
+                author_affliication = json_data['author_affliication']
+                author_affliication = [x for x in author_affliication if \
+                    x.strip().startswith('[')]
+                for author_elem in author_elems:
+                    sup_start_chars = "<sup>"
+                    sup_end_chars = "</sup>"
+                    try:
+                        sup_start_index = author_elem.index(sup_start_chars)
+                        author_text = author_elem[0:sup_start_index]
+                        sup = Utils.extract_chars(author_elem, sup_start_chars, sup_end_chars)
+                    except Exception as e:
+                        sup = "1"
+                        author_text = author_elem
+
+                    if not sup.isdigit():
+                        sup = "1"
+
+                    authors.append(author_text)
+                    author_sups.append(sup)
+
+                json_data = Utils._format_authors(json_data, authors, author_sups, author_affliication)
+                json_data.pop('author_field', None)
+                   
+        return json_data
+        
     def start(self):
         with open(self.meta_file) as f:
             for line in f:
@@ -89,6 +166,10 @@ class MetaCheck(object):
                 if access_url == "":
                     self.no_access_url = self.no_access_url + 1
                     continue
+
+                #针对不同的平台，对元数据做一些特殊处理
+                json_data = self._transform(json_data)
+
                 
                 #检查2:检查是否采集必备字段
                 miss_required_filed = False
@@ -106,15 +187,13 @@ class MetaCheck(object):
 
                 if miss_required_filed:
                     continue
-                    
                 
                 #检查3:检查元数据里面是否有非空字段
                 fail = False
                 for key, value in json_data.iteritems():
                     key = key.strip(":").strip()
                     value = Utils.format_value(value)
-                    if value == "" and key in self.required_key:
-
+                    if value == "" and key in self.required_keys:
                         if key == "publish_year":
                             publish_data = self._get_value(json_data, "publish_date")
                             if publish_data != "":
@@ -139,7 +218,8 @@ class MetaCheck(object):
                 publish_year = self._get_value(json_data, "publish_year")
                 if publish_year == "":
                     publish_data = self._get_value(json_data, "publish_date")
-                    json_data["publish_year"] = publish_data.split("-")[0] 
+                    if publish_data != "":
+                        json_data["publish_year"] = publish_data.split("-")[0] 
 
                 if access_url in self.pass_meta_map:
                     title = self._get_value(json_data, "title")
@@ -269,6 +349,9 @@ class MetaCheck(object):
 
         return ret
 
+    def _key_exist(self, json_data, key):
+        return (key in json_data) and (json_data[key] is not None) \
+            and (json_data[key] != "")
 
     def _mark_success_record(self, json_data):
         """
@@ -276,7 +359,7 @@ class MetaCheck(object):
 
         1. 对Key做一些归一化的工作，同时也可以加一些必备的字段
         2. 如果指定了pdf save dir，则会和pdf文件做拼接
-
+        3. 去掉一些无用的key(比如portia爬取，会加上_template这样的字段)
         @param json_data
         """
         publish_data = self._get_value(json_data, "publish_date")
@@ -318,7 +401,9 @@ class MetaCheck(object):
                     raise Exception("cannot get pdf_url from json %s" % json_data)
                 self.miss_pdf_writer.write(pdf_link)
                 self.miss_pdf_writer.write("\n")
-                
+
+        #去掉一些key
+        json_data.pop('_template', None)
 
         convert_data_str = json.dumps(convert_data)
         self.pass_meta_writer.write(convert_data_str)
