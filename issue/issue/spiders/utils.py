@@ -6,6 +6,7 @@ import uuid
 import os
 import json
 import xlrd
+import sys
 """
 Provide some utils function to crawl web data
 """
@@ -65,15 +66,18 @@ class Utils(object):
 
     """
     Parse date from string
-    @origin_date date string crawled
+    @origin_date: date string crawled, possible format:
+        1: November 1, 2017
+        2: 1 November 2017
     @return datetime object
     """
     @staticmethod
     def strptime(origin_date):
-        print "process time: %s" % origin_date
+        origin_date = origin_date.replace(",", "")
         dates = origin_date.split()
 
         month = dates[1]
+        day = dates[0]
         month_dict = {
                 'Jan' : 1, 
                 'January' : 1,
@@ -97,11 +101,15 @@ class Utils(object):
                 'November' : 11,
                 'Dec' : 12,
                 'December': 12}
+
         if month not in month_dict:
-            raise Exception("month not expected: %s" % month)
+            month = dates[0]
+            day = dates[1]
+            if month not in month_dict:
+                raise Exception("month not expected: %s" % month)
 
         month = month_dict[month]
-        date_obj = datetime.datetime.strptime("%s-%s-%s" % (dates[2], month, dates[0]), "%Y-%m-%d")
+        date_obj = datetime.datetime.strptime("%s-%s-%s" % (dates[2], month, day), "%Y-%m-%d")
         return date_obj
 
     @staticmethod
@@ -194,6 +202,44 @@ class Utils(object):
         except Exception:
             return False
         return True
+
+    @staticmethod
+    def extract_chars(origin, start_chars, end_chars):
+        try:
+            start_index = origin.index(start_chars) + len(start_chars)
+            end_index = origin.index(end_chars)
+        except Exception as e:
+            print "origin is: %s" % origin
+            print "start_chars: %s" % start_chars
+            return ""
+        return origin[start_index:end_index]
+
+    @staticmethod
+    def _format_authors(json_data, authors, author_sups, author_affliication):
+        """
+        @param author_sups 目前不支持一个作者多个机构
+        """
+        if len(authors) != len(author_sups):
+            raise Exception("len of authors(%d), author_sups(%d) not equal" %
+                (len(authors), len(author_sups), len(author_affliication)))
+
+        author_text = "|".join(authors)
+        author_affliication_text = ""
+        for sup in author_sups:
+            try:
+                affliication = author_affliication[int(sup) - 1]
+            except Exception as e:
+                #还有可能作者引用的机构不存在的情况,比如：
+                #https://www.intechopen.com/books/advances-in-solid-state-lasers-development-and-applications/laser-driven-proton-acceleration-research-and-development
+                print "get afflication error: %s" % json_data["url"]
+                affliication = "unkown"
+            affliication = re.sub('\[\d+\]', '', affliication)
+            author_affliication_text += affliication + "|"
+
+        author_affliication_text = author_affliication_text.strip("|")
+        json_data['author'] = author_text
+        json_data['author_affliication'] = author_affliication_text
+        return json_data
 
     def load_journal_meta(all_journal_meta_xls):
         """
