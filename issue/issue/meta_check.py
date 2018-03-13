@@ -20,7 +20,7 @@ class MetaCheck(object):
         self.pass_meta_file = args.pass_meta_file
         self.bad_meta_file = args.bad_meta_file
         self.miss_pdf_file = args.miss_pdf_file
-        self.convert = args.convert.lower() == "true"
+        self.for_oa = args.for_oa.lower() == "true"
 
         self.no_access_url = 0
         self.json_fail = 0
@@ -30,6 +30,13 @@ class MetaCheck(object):
         self.dup = 0
         self.pdf_exist = 0
         self.pdf_non_exist = 0
+
+        self.reserved_non_converted_keys = [
+            "author_affiliation",
+            "author_sup",
+            "author",
+            #"keywords"
+        ]
 
         self.required_keys = [
             #"abstracts",
@@ -44,7 +51,12 @@ class MetaCheck(object):
         self.key_map = {
             "url" : "access_url",
             "pdf_download" : "pdf_url",
-            "date" : "publish_date"
+            "date" : "release_date",
+            "publish_date" : "release_date",
+            "author_afflication" : "author_affiliation",
+            "author_affiliations" : "author_affiliation",
+            "author_affliation" : "author_affiliation",
+            "volumn": "volume"
         }
 
         self._init()
@@ -145,7 +157,7 @@ class MetaCheck(object):
                     authors.append(author_text)
                     author_sups.append(sup)
 
-                json_data = Utils._format_authors(json_data, authors, author_sups, author_affliication)
+                json_data = Utils.format_authors(json_data, authors, author_sups, author_affliication)
                 json_data.pop('author_field', None)
                    
         return json_data
@@ -194,12 +206,12 @@ class MetaCheck(object):
                     key = key.strip(":").strip()
                     value = Utils.format_value(value)
                     if value == "" and key in self.required_keys:
-                        if key == "publish_year":
-                            publish_data = self._get_value(json_data, "publish_date")
+                        if key == "release_year":
+                            publish_data = self._get_value(json_data, "release_date")
                             if publish_data != "":
                                 #if publish data is also empty, there is no way to get publish_year
-                                json_data["publish_year"] = publish_data.split("-")[0]
-                                print "publish year is %s" % json_data["publish_year"]
+                                json_data["release_year"] = publish_data.split("-")[0]
+                                print "publish year is %s" % json_data["release_year"]
                                 continue
 
                         bad_record = {}
@@ -215,11 +227,13 @@ class MetaCheck(object):
 
                 #检查4:补充一些必备字段
                 json_data['acquisition_time'] = Utils.current_time()
-                publish_year = self._get_value(json_data, "publish_year")
+                publish_year = self._get_value(json_data, "release_year")
                 if publish_year == "":
-                    publish_data = self._get_value(json_data, "publish_date")
+                    publish_data = self._get_value(json_data, "release_date")
                     if publish_data != "":
-                        json_data["publish_year"] = publish_data.split("-")[0] 
+                        json_data["release_year"] = publish_data.split("-")[0] 
+
+                #处理一下author、author_sub、author_affiliation等字段        
 
                 if access_url in self.pass_meta_map:
                     title = self._get_value(json_data, "title")
@@ -341,11 +355,13 @@ class MetaCheck(object):
         ret = Utils.format_value(value, convert)
 
         #余下，可以针对特定key的value，做一些归一化处理
-        if key == "publish_date":
+        if key == "release_date":
             if type(ret) is not list:
                 ret = ret.replace("00:00:00", "")
             else:
                 ret[0] = ret[0].replace("00:00:00", "")
+            
+            ret = Utils.format_datetime(ret)
 
         return ret
 
@@ -362,25 +378,63 @@ class MetaCheck(object):
         3. 去掉一些无用的key(比如portia爬取，会加上_template这样的字段)
         @param json_data
         """
-        publish_data = self._get_value(json_data, "publish_date")
-        if "publish_year" not in json_data or json_data["publish_year"] == "":
+        publish_data = self._get_value(json_data, "release_date")
+        if "release_year" not in json_data or json_data["release_year"] == "":
             #if publish data is also empty, there is no way to get publish_year
-            if "publish_date" in json_data:
-                json_data["publish_year"] = publish_data.split()[-1]
+            if "release_date" in json_data:
+                json_data["release_year"] = publish_data.split()[-1]
 
-        #keywords = self._get_value(json_data, "keywords")
-        #json_data["keywords"] = keywords.replace("Keywords", "").strip()
+        if "keywords" in json_data:
+          if type(json_data["keywords"]) is list \
+          and len(json_data["keywords"]) == 1:
+            #portia有的期刊爬取keywords，都写到一个元素里面了，应该拆开
+            keywords = json_data["keywords"][0].replace("Keywords", "").strip()
+            json_data["keywords"] = keywords.split(";")
+            if len(json_data["keywords"]) == 1:
+              json_data["keywords"] = keywords.split(",")
 
         convert_data = {}
         for key, value in json_data.iteritems():
-            key = key.strip(":").strip().lower()
+            format_key = key.strip(":").strip().lower()
 
-            if key in self.key_map:
-                key = self.key_map[key]
+            if format_key in self.key_map:
+                format_key = self.key_map[format_key]
 
-            value = self._get_value(json_data, key, convert = self.convert) #这里使用_get_value,会对value做一些归一化
+            #这类key，不会把list转换为string
+            if format_key in self.reserved_non_converted_keys:
+                convert = False
+            else:
+                convert = not self.for_oa
 
-            convert_data[key] = value
+            value = self._get_value(json_data, key, convert = convert) #这里使用_get_value,会对value做一些归一化
+
+            convert_data[format_key] = value
+
+        # 归一化作者和作者机构
+        if 'author' in convert_data and len(convert_data["author"]) == 1:#这种author可能是一坨html，包含了多个作者并且每个作者的sup也标记在<sup>里面
+            #这种情况属于作者机构不太好爬，直接把html文档都爬取到author字段了
+            authors, author_sups = self._format_authors(convert_data)
+            if 'author_sup' not in convert_data:
+                convert_data['author_sup'] = author_sups
+            else:
+                convert_data['author_sup'] = [self._format_author_sup(sup) for sup in convert_data['author_sup']]
+
+            if len(authors) == 1:
+              #如果此时author还是只有一个元素，那么author可能是,分隔的
+              authors = authors[0].split(",")
+
+            convert_data['author'] = authors
+
+        if "author_affiliation" in convert_data and len(convert_data['author_affiliation']) == 1:
+            #这种author_affiliation可能是一坨html
+            author_affiliation = convert_data['author_affiliation'][0]
+            authors = convert_data['author']
+            if author_affiliation.startswith(authors[0]):
+              #这种作者机构是以作者分隔的,比如:https://koedoe.co.za/index.php/koedoe/article/view/188
+              author_affiliation = self._format_author_affiliations_by_author(author_affiliation, authors)
+            else:
+              author_affiliation = self._format_author_affiliations(convert_data)
+            convert_data['author_affiliation'] = author_affiliation
 
         if self.args.pdf_dir is not None:
             filename = Utils.get_pdf_filename(json_data)
@@ -402,13 +456,138 @@ class MetaCheck(object):
                 self.miss_pdf_writer.write(pdf_link)
                 self.miss_pdf_writer.write("\n")
 
+        #归一化author,author_affiliation
+        if not self.for_oa:
+            convert_data = Utils.format_authors_from_json(convert_data)
+
         #去掉一些key
-        json_data.pop('_template', None)
+        convert_data.pop("author_sup", None)
+        convert_data.pop('_template', None)
 
         convert_data_str = json.dumps(convert_data)
         self.pass_meta_writer.write(convert_data_str)
         self.pass_meta_writer.write("\n")
 
+    """
+    所有作者可能被写到一个字段
+    """
+    def _get_author_split_char(self, convert_data):
+        return "|"
+
+    """
+    for example:
+        input:
+            authors: ["li zhen <sup>a-c</sup><sup>d</sup>", "chen lu <sup>1-2</sup><sup>3</sup>"]
+        return:
+            authors: ["li zhen", "chen lu"],
+            author_sups: ["1,2,3,4", "1,2,3"]
+    """
+    def _format_authors(self, article_info):
+        author = article_info["author"][0]
+        author = re.sub(r'\xb7', r'|', author) #十六进制字符，模式用replace无法替换，所以用上了re.sub
+        author_split_char = self._get_author_split_char(article_info)
+        author = author.replace("<br>", "").strip()
+        authors = author.split(author_split_char)
+        format_authors = []
+        format_sups = []
+        for author in authors:
+            author_sup = re.findall("<sup>([\w\-, ]+)</sup>", author)
+            author_sup = [self._format_author_sup(sup) for sup in author_sup]
+            author = re.sub("<sup>[\w\-, ]+</sup>", "", author).strip().strip(".")
+            #sys.exit(1)
+            format_authors.append(author)
+            format_sups.append(",".join(author_sup))
+        return format_authors, format_sups
+
+    def _format_author_affiliations_by_author(self, author_affiliation, author):
+        """
+        for example:
+            input:
+                author:[u'Elizabeth J. Opperman', u' Michael I. Cherry', u' Nokwanda P. Makunga']
+                author_affiliation:'Elizabeth J. Opperman, Department of Botany and Zoology, Stellenbosch University, South Africa Michael I. Cherry, Department of Botany and Zoology, Stellenbosch University, South Africa Nokwanda P. Makunga, Department of Botany and Zoology, Stellenbosch University, South Africa'
+            return:
+                author_affiliation:[
+                    "Department of Botany and Zoology, Stellenbosch University, South Africa",
+                    "Department of Botany and     Zoology, Stellenbosch University, South Africa",
+                    "Department of Botany and Zoology, Stellenbosch University, South Africa"]
+        """
+        author_affiliations = []
+        author_index = 0
+        while author_index < len(author):
+          author_name = author[author_index] 
+          start_index = author_affiliation.find(author_name)
+          if start_index == -1:
+            raise Exception("cannot find author in affliication: %s" % author_name)
+
+          start_index = start_index + len(author_name)
+          if author_index == len(author) -1:
+            affiliation = author_affiliation[start_index:]
+          else:
+            end_index = author_affiliation.find(author[author_index + 1])
+            if end_index == -1:
+              raise Exception("cannot find author in affliication: %s" % author[author_index + 1])
+            affiliation = author_affiliation[start_index:end_index]
+
+          affiliation = affiliation.strip(",").strip()
+          
+          author_affiliations.append(affiliation)
+          author_index += 1
+        return author_affiliations
+
+    def _format_author_affiliations(self, article_info):
+        """
+        for example:
+            input:
+                article_info['author_affiliation']: ["<sup>a</sup>Department of Pharmacology, Postgraduate Institute of Medical Education and Research and Dr. Ram Manohar Lohia Hospital, New Delhi, and <sup>b</sup>Department of Pharmacology, Gauhati Medical College and Hospital, Guwahati, India"]
+            return:
+                author_affiliation:[
+                    "Department of Pharmacology, Postgraduate Institute of Medical Education and Research and Dr. Ram Manohar Lohia Hospital, New Delhi",
+                    "Department of Pharmacology, Gauhati Medical College and Hospital, Guwahati, India"]
+        """
+        author_affiliation = article_info["author_affiliation"][0]
+        author_affiliations = []
+        sup_start_chars = "<sup>"
+        sup_end_chars = "</sup>"
+        index = 0
+        sup_start_index = author_affiliation.find(sup_start_chars, index)
+        sup_end_index = 0
+        if sup_start_index == -1:
+            return article_info["author_affiliation"]
+
+        while sup_start_index != -1:
+            sup_end_index = author_affiliation.index(sup_end_chars, sup_start_index)
+            sup_start_index = author_affiliation.find(sup_start_chars, sup_end_index + len(sup_end_chars))
+            if sup_start_index != -1:
+                author_affiliations.append(author_affiliation[sup_end_index + len(sup_end_chars): sup_start_index])
+            else: 
+                author_affiliations.append(author_affiliation[sup_end_index + len(sup_end_chars):])
+        return author_affiliations
+    def _format_author_sup(self, origin_sup):
+        """
+        Format author sup
+        for example:
+            case 1:
+                origin_sup: a-c,d
+                return: 1,2,3,4
+            case 2:
+                origin_sup: 1-4
+                return: 1,2,3,4
+        """
+        origin_sup = origin_sup.replace(" ", "")
+        origin_sup = "".join([str(ord(sup) - ord('a') + 1) if sup.isalpha() else sup for sup in origin_sup])
+        sups = origin_sup.split(",")
+        res = []
+        for sup in sups:
+            if sup.find("-") != -1:
+                elems = sup.split("-")
+                if len(elems) != 2:
+                    raise Exception("unexcept sup: %s" % origin_sup)
+                start = int(elems[0])
+                end = int(elems[1])
+                res.extend(range(start, end + 1))
+            else:
+                res.append(sup)
+        return ",".join([str(e) for e in res])    
     def _mark_bad_record(self, bad_record):
         """
         Mark an bad record
@@ -434,7 +613,7 @@ def parse_init():
     parser.add_argument('-j', "--journal_file", help="journal file, xls format")
     parser.add_argument('-u', "--url_file", help="url_file")
     parser.add_argument('-s', "--source_name", help="source name[f.e: wiley]")
-    parser.add_argument('-c', "--convert", default="True", help="whether convert list value")
+    parser.add_argument('-o', "--for_oa", default="False", help="if conerted meta used for oa")
     return parser
 
 def select_action(action):

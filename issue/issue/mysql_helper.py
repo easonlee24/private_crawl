@@ -90,6 +90,7 @@ class MySQLHelper:
             self.query(sql)  
             self.commit()  
         except MySQLdb.Error as e:  
+            print('MySql Error: %s %s'%(e.args[0],e.args[1]))  
             self.conn.rollback()  
             print('MySql Error: %s %s'%(e.args[0],e.args[1]))  
       
