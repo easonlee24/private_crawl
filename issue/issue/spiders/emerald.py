@@ -77,7 +77,8 @@ class EmeraldSpider(scrapy.Spider):
                 print "%s has crawled, filter" % url
 
             else:
-                yield response.follow(url, self.parse_issue, meta = meta, dont_filter = True)
+                pass
+                #yield response.follow(url, self.parse_issue, meta = meta, dont_filter = True)
 
             #yield {
             #    'url' : url,

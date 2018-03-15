@@ -26,11 +26,18 @@ class JstorSpider(scrapy.Spider):
             with open(self.meta_file) as f:
                 for line in f:
                     json_data = json.loads(line)
-                    if "search_url" in json_data:
-                        self.crawled_url.append(json_data["search_url"])
+                    print json_data
+                    if "origin_url" in json_data:
+                        self.crawled_url.append(json_data["origin_url"])
+                    #elif "search_url" in json_data:
+                    #    self.crawled_url.append(json_data["search_url"])
 
     def start_requests(self):
-        #yield Request("http://www.jstor.org/stable/4416302?Search=yes&resultItemClick=true&searchText=agriculture&searchText=OR&searchText=agricultural&searchText=OR&searchText=rural&searchUri=%2Faction%2FdoBasicSearch%3FQuery%3Dagriculture%2BOR%2Bagricultural%2BOR%2Brural%26amp%3Bacc%3Don%26amp%3Bfc%3Doff%26amp%3Bed%3D2005%252F03%26amp%3Bsd%3D2005%252F02%26amp%3Bwc%3Don%26amp%3Bpage%3D15%26amp%3Bgroup%3Dnone%26amp%3BsearchType%3DfacetSearch&seq=1#page_scan_tab_contents", self.parse_issue, dont_filter = True)
+        #meta = {"search_url" : "search_url"}
+        ##书籍
+        #yield Request("http://www.jstor.org/stable/10.7249/mg358cf.10?seq=1#page_scan_tab_contents", self.parse_issue, meta = meta, dont_filter = True)
+        ##期刊
+        ##yield Request("http://www.jstor.org/stable/40279148?Search=yes&resultItemClick=true&searchText=agriculture&searchText=OR&searchText=agricultural&searchText=OR&searchText=rural&searchUri=%2Faction%2FdoBasicSearch%3Fgroup%3Dnone%26amp%3Bsd%3D2009%252F03%26amp%3BsearchType%3DfacetSearch%26amp%3BQuery%3Dagriculture%2BOR%2Bagricultural%2BOR%2Brural%26amp%3Bpage%3D6%26amp%3Bfc%3Doff%26amp%3Bed%3D2009%252F04%26amp%3Bacc%3Don%26amp%3Bwc%3Don&seq=1#page_scan_tab_contents", self.parse_issue, meta = meta, dont_filter = True)
         #return
         if self.url_file:
             #指定了爬取哪些url
@@ -38,7 +45,12 @@ class JstorSpider(scrapy.Spider):
                 for line in f:
                     json_data = json.loads(line)
                     if "url" in json_data:
-                        yield Request(json_data["url"], self.parse_issue, dont_filter = True)
+                        url = json_data["url"]
+                        if url in self.crawled_url:
+                            print "filter url: %s" % url
+                        else:
+                            meta = {"origin_url" : json_data["url"]}
+                            yield Request(json_data["url"], self.parse_issue, meta = meta, dont_filter = True)
                         #return
             return
 
@@ -67,29 +79,46 @@ class JstorSpider(scrapy.Spider):
 
     def parse_issue(self, response):
         title = Utils.extract_text_with_xpath(response, "//h1[contains(@class,'title') and contains(@class,'medium-heading')]")
+        if title == "":
+            #书籍类型
+            title = Utils.extract_text_with_xpath(response, "//h1[@class='medium-heading']/span[@class='title']")
+        book_title = Utils.extract_text_with_xpath(response, "//div[@class='book-title']/a")
+
+        meta_type = Utils.extract_text_with_xpath(response, "//div[@data-qa='content-type']")
         journal = Utils.extract_text_with_xpath(response, "//div[@class='journal']/cite")
         infos = Utils.extract_text_with_xpath(response, "//div[@class='src mbl']")
         volume = Utils.regex_extract(infos, "Vol\. (\d+)")
         issue = Utils.regex_extract(infos, "No\. (\w+)")
         publish_date = Utils.regex_extract(infos, "No\..*\((.*)\)")
-        start_page = Utils.regex_extract(infos, "pp\. (\d+)-")
-        end_page = Utils.regex_extract(infos, "pp\. \d+-(\d+)")
+
+        if publish_date == "":
+            publish_date = Utils.extract_text_with_xpath(response, "//div[@class='published_date']")
+
+        page_range = Utils.extract_text_with_xpath(response, "//div[@class='page-range']")
+        if page_range == "":
+            page_range = infos
+
+        start_page = Utils.regex_extract(page_range, "pp\. (\d+)-")
+        end_page = Utils.regex_extract(page_range, "pp\. \d+-(\d+)")
         page_count = Utils.extract_text_with_xpath(response, "//div[@class='count']")
         page_count = page_count.replace("Page Count: ", "")
+
         publisher = Utils.extract_text_with_xpath(response, "//a[@class='publisher-link']/")
+
         stable_url = Utils.extract_text_with_xpath(response, "//div[@class='stable']")
         stable_url = Utils.regex_extract(stable_url, "Stable URL: (.*)$" )
-        stable_id = Utils.regex_extract(stable_url, "stable/(\w+)$")
+        stable_id = Utils.regex_extract(stable_url, "stable/(.*)$")
         pdf_url = "http://www.jstor.org/stable/pdf/%s.pdf" % stable_id
-        if stable_url == "":
-            stable_url = response.url
 
         keywords = Utils.extract_all_text_with_xpath(response, "//div[@class='topics-list mtl']/a", join_str = ",")
 
         yield {
-            "url" : stable_url,
+            "url" : response.url,
+            "stable_url" : stable_url,
+            "origin_url" : response.meta["origin_url"],
             "journal" : journal,
             "title" : title,
+            "book_title" : book_title,
             "volume" : volume,
             "issue" : issue,
             "release_date" : publish_date,
@@ -97,9 +126,10 @@ class JstorSpider(scrapy.Spider):
             "end_page" : end_page,
             "page_count" : page_count,
             "keywords" : keywords,
-            "pdf_url" : pdf_url
+            "pdf_url" : pdf_url,
+            "meta_type" : meta_type,
+            "publisher" : publisher
         }
-
 
     def parse_result_of_date(self, response):
         total_count = Utils.get_all_inner_texts(response, "//*[@id='search-container']/div/div[2]/div[1]/div[1]/h2").split()[-1].replace(",", "")

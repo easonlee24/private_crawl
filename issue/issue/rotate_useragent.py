@@ -3,6 +3,8 @@
 from scrapy import log
 from settings import PROXIES
 import base64
+import requests
+import time
 
 """避免被ban策略之一：使用useragent池。 
 
@@ -21,7 +23,7 @@ class RotateUserAgentMiddleware(UserAgentMiddleware):
         ua = random.choice(self.user_agent_list)
         if ua:
             # 显示当前使用的useragent
-            print "********Current UserAgent:%s************" % ua
+            #print "********Current UserAgent:%s************" % ua
 
             # 记录
             #log.msg('Current UserAgent: ' + ua)
@@ -53,12 +55,14 @@ class RotateUserAgentMiddleware(UserAgentMiddleware):
 
 class ProxyMiddleware(object):
     def process_request(self, request, spider):
-        proxy = random.choice(PROXIES)
-        if proxy['user_pass'] is not None:
-            request.meta['proxy'] = "http://%s" % proxy['ip_port']
-            encoded_user_pass = base64.encodestring(proxy['user_pass'])
-            request.headers['Proxy-Authorization'] = 'Basic ' + encoded_user_pass
-            print "**************ProxyMiddleware have pass************" + proxy['ip_port']
-        else:
-            print "**************ProxyMiddleware no pass************" + proxy['ip_port']
-            request.meta['proxy'] = "http://%s" % proxy['ip_port'] 
+        r = requests.get("http://api.ip.data5u.com/dynamic/get.html?order=4e9253326e65a220eeff54c1e023b2b8&ttl=1&sep=3")
+        infos = r.text.strip().split(",")
+        ip = infos[0]
+        if ip == "too many requests":
+            time.sleep(2)
+            r = requests.get("http://api.ip.data5u.com/dynamic/get.html?order=4e9253326e65a220eeff54c1e023b2b8&ttl=1&sep=3")
+            infos = r.text.strip().split(",")
+            ip = infos[0]
+        print "use proxy ip: %s" % ip
+        print infos
+        request.meta['proxy'] = "http://%s" % ip
