@@ -65,6 +65,36 @@ class Utils(object):
         return selected_elemment
 
     """
+    字符串转数字，并且可以处理罗马数字
+    """
+    @staticmethod
+    def str_to_num(num_str):
+        if num_str.isdigit():
+            ret =  int(num_str)
+        else:
+            #尝试解析罗马数字
+            ret =  Utils.transform_roman_num2_alabo(num_str)
+        return ret
+
+    """
+    将罗马数字转化为阿拉伯数字 
+    """
+    @staticmethod
+    def transform_roman_num2_alabo(one_str):  
+        one_str = one_str.upper()
+        define_dict={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000}  
+        if one_str=='0':  
+		    return 0  
+        else:  
+		    res=0  
+		    for i in range(0,len(one_str)):  
+			    if i==0 or define_dict[one_str[i]]<=define_dict[one_str[i-1]]:  
+				    res+=define_dict[one_str[i]]  
+			    else:  
+			    	res+=define_dict[one_str[i]]-2*define_dict[one_str[i-1]]  
+		    return res  
+
+    """
     Parse date from string
     @origin_date: date string crawled, possible format:
         1: November 1, 2017
@@ -112,6 +142,22 @@ class Utils(object):
         date_obj = datetime.datetime.strptime("%s-%s-%s" % (dates[2], month, day), "%Y-%m-%d")
         return date_obj
 
+    """
+    Convert date format crawl to format data format
+    @origin_date: date string crawled, possible format:
+        1: November 1, 2017
+        2: 1 November 2017
+    @return str 2017-11-01
+    """
+    @staticmethod
+    def format_datetime(origin_date):
+        try:
+            date_obj = Utils.strptime(origin_date)
+        except Exception as e:
+            return origin_date
+
+        return date_obj.strftime("%Y-%m-%d")
+
     @staticmethod
     def get_pdf_filename(json_data):
         """
@@ -155,14 +201,22 @@ class Utils(object):
         return result
 
     @staticmethod
-    def extract_all_with_xpath(root, xpath_str, default_value = ""):
+    def extract_text_with_xpath(root, xpath_str, default_value = ""):
+        return Utils.extract_with_xpath(root, xpath_str + "/text()", default_value)
+
+    @staticmethod
+    def extract_all_with_xpath(root, xpath_str, default_value = "", join_str = ""):
         try:
-            result = "".join(root.xpath(xpath_str).extract())
+            result = join_str.join(root.xpath(xpath_str).extract())
             result = result.strip()
         except Exception as e:
             result = default_value
 
         return result
+
+    @staticmethod
+    def extract_all_text_with_xpath(root, xpath_str, default_value = "", join_str = ""):
+        return Utils.extract_all_with_xpath(root, xpath_str + "/text()", default_value, join_str)
 
     @staticmethod
     def generate_workdir(prefix=""):
@@ -181,17 +235,21 @@ class Utils(object):
     @staticmethod
     def format_value(value, convert=True):
         if type(value) is list:
+            value = filter(None, value)
             if not convert:
                 return value
 
-            if value[0] is None:
+            if len(value) == 0:
                 value = ""
             else:
                 value = ",".join(value)
 
         if value is None:
             value = ""
-
+              
+        if isinstance(value, int):
+            value = str(value)   
+          
         value = value.strip()
         return value
 
@@ -215,31 +273,101 @@ class Utils(object):
         return origin[start_index:end_index]
 
     @staticmethod
-    def _format_authors(json_data, authors, author_sups, author_affliication):
+    def format_authors_from_json(json_data):
+        """
+        @param json_data
+        """
+        author = json_data.get("author")
+        author_affiliation = json_data.get("author_affiliation", None)
+        if author_affiliation is None:
+            author_affiliation = ["unkown"] * len(author)
+
+        if "author_sup" in json_data:
+            author_sup = json_data["author_sup"]
+            author_sup = Utils._format_author_sup(len(author), author_sup)
+        else:
+            #如果没有author_sup这个字段，说明作者作何机构是一一对应的,生成一个假的author_sup
+            #已知有以下几种情况：
+            #a:author_affiliation数目不为1，此时，author 和 author_affiliation的size应该一样
+            #b:author_affiliation数目为1，那么所有的作者都属于这个机构
+            author_sup = range(1, len(author) + 1)
+            if len(author) != len(author_affiliation):
+                if len(author_affiliation) == 1:
+                    author_sup = [0] * len(author)
+                else:
+                    print("url %s, size of author(%d) and author_affiliation(%d) should be equal when author_sup not set!"\
+                        % (self.url, len(author), len(author_affiliation)))
+                    return
+
+        if len(author) != len(author_sup):
+            raise Exception("author and authos_sup len not equal, This not gonna happen: %s" % url)
+            return
+        
+        return Utils.format_authors(json_data, author, author_sup, author_affiliation)
+        
+    @staticmethod
+    def _format_author_sup(author_size, author_sup, supplement = True):
+        """
+        Filter some invalid author sup, and supplement author sup if need
+        For example: author_size is 3, author_sup is ["1,2,", "*"], will return
+        ["1,2", "1", "1"]
+        """
+        if type(author_sup) is not list:
+            #may not extract author sup
+            author_sup = []
+
+        index = 0
+        while(index < len(author_sup)):
+            sup_list = author_sup[index].split(',')
+            sup_list = [k for k in sup_list if k.isdigit()]
+            if len(sup_list) == 0:
+                sup_list = ['1']
+            author_sup[index] = ",".join(sup_list)
+            index = index + 1
+        
+        if supplement:
+            fill_index = len(author_sup)
+            while fill_index <= author_size -1:
+                author_sup.append('1')
+                fill_index = fill_index + 1
+
+        return author_sup
+
+    @staticmethod
+    def format_authors(json_data, authors, author_sups, author_affiliation):
         """
         @param author_sups 目前不支持一个作者多个机构
         """
         if len(authors) != len(author_sups):
             raise Exception("len of authors(%d), author_sups(%d) not equal" %
-                (len(authors), len(author_sups), len(author_affliication)))
+                (len(authors), len(author_sups)))
 
         author_text = "|".join(authors)
         author_affliication_text = ""
         for sup in author_sups:
             try:
-                affliication = author_affliication[int(sup) - 1]
+                affliication = author_affiliation[int(sup) - 1]
             except Exception as e:
                 #还有可能作者引用的机构不存在的情况,比如：
                 #https://www.intechopen.com/books/advances-in-solid-state-lasers-development-and-applications/laser-driven-proton-acceleration-research-and-development
-                print "get afflication error: %s" % json_data["url"]
+                print "get afflication error: %s" % json_data["access_url"]
                 affliication = "unkown"
             affliication = re.sub('\[\d+\]', '', affliication)
             author_affliication_text += affliication + "|"
 
         author_affliication_text = author_affliication_text.strip("|")
         json_data['author'] = author_text
-        json_data['author_affliication'] = author_affliication_text
+        json_data['author_affiliation'] = author_affliication_text
         return json_data
+
+    @staticmethod
+    def regex_extract(text, regex_str):
+        regexp = re.compile(regex_str)
+        match = regexp.search(text)
+        if not match:
+            return ""
+
+        return "".join([g for g in match.groups() or match.group() if g])
 
     def load_journal_meta(all_journal_meta_xls):
         """
@@ -281,3 +409,7 @@ class Utils(object):
             'collection_id': rowValues[43],
             'source_id': rowValues[44]}
         return all_journal_meta
+
+if __name__ == '__main__':
+    text = "Vol. 35, No. 1 (April 2010), pp. 51-71"
+    print Utils.regex_extract(text, "Vol. (\d+), No. (\d+)")

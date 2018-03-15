@@ -40,6 +40,7 @@ if __name__ == '__main__':
             try:
                 jsondic = json.loads(line)
             except Exception as e:
+                raise Exception(e)
                 continue
 
             for k in jsondic:

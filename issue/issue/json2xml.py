@@ -6,6 +6,7 @@ import time
 import xlrd
 import datetime
 import re
+import urlparse
 from xml.dom import minidom
 from mysql_helper import MySQLHelper
 reload(sys)
@@ -14,13 +15,18 @@ sys.setdefaultencoding('utf8')
 class Json2Xml:
     """Convert metadata result crawled by scrapy to xml
     """
-    def __init__(self, all_journal_meta_xls, json_file, save_file):
+    def __init__(self, all_journal_meta_xls, json_file, save_file, table_suffix = None):
         self.json_file = json_file
         self.save_file = save_file
-        self.today = '20171112'
+        self.today = time.strftime('%Y%m%d', time.localtime(time.time()))
         self.now = time.strftime('%Y-%m-%dT00:00:00',time.localtime(time.time()))
+        if table_suffix is None:
+            table_suffix = self.today
+        self.table_suffix = table_suffix
 
         self.all_journal_meta = {}
+        #以防某些元数据爬取不到journal name，从excel里面获取journal url与journal name的对应关系
+        self.journal_url_to_name = {}
         self.load_journal_meta(all_journal_meta_xls)
         self.journal_ids = {}
         self.next_article_id= 1
@@ -41,8 +47,9 @@ class Json2Xml:
             "JPM" : "Journal of Personalized Medicine",
             "JRFM" : "Journal of Risk and Financial Management",
             "JSAN" : "Journal of Sensor and Actuator Networks",
+            "INTEGR MED INT" : "Integrative Medicine International",
+            "ASWAN HEART CENTRE SCIENCE & PRACTICE SERIES" : "Aswan Heart Centre Science and Practice Series"
         }
-        print self.journal_name_map
 
         self._init_db()
 
@@ -56,8 +63,8 @@ class Json2Xml:
     3. create table article_author if not exist
     """
     def _init_db(self):
-            self.mysql_helper = MySQLHelper("localhost", "root", "123456")
-            self.oa_database = "oa"
+            self.mysql_helper = MySQLHelper("127.0.0.1", "root", "123456")
+            self.oa_database = "oa_%s" % self.table_suffix
             self.article_table = "article_info"
             self.author_table = "article_author"
             self.mysql_helper.create_database(self.oa_database)
@@ -81,16 +88,16 @@ class Json2Xml:
                                 "country varchar(20) NOT NULL,"\
                                 "publish_year varchar(20) NOT NULL,"\
                                 "publish_date varchar(20) NOT NULL,"\
-                                "volume varchar(10) NOT NULL,"\
-                                "issue varchar(10) NOT NULL,"\
+                                "volume varchar(100) NOT NULL,"\
+                                "issue varchar(100) NOT NULL,"\
                                 "access_url varchar(300) NOT NULL,"\
                                 "license_text text,"\
                                 "license_url varchar(100),"\
                                 "copyright text,"\
                                 "ro_title varchar(100) NOT NULL,"\
                                 "xml_uri varchar(300) NOT NULL,"\
-                                "pdf_uri varchar(300) NOT NULL,"\
-                                "pdf_access_url varchar(200) NOT NULL,"\
+                                "pdf_uri varchar(500) NOT NULL,"\
+                                "pdf_access_url varchar(500) NOT NULL,"\
                                 "creator varchar(20) NOT NULL,"\
                                 "create_time datetime NOT NULL,"\
                                 "finished tinyint(1) NOT NULL DEFAULT 0,"\
@@ -100,7 +107,7 @@ class Json2Xml:
 
             author_create_table_sql = "create table if not exists %s("\
                                       "work_id varchar(50) NOT NULL,"\
-                                      "author_name varchar(100) NOT NULL,"\
+                                      "author_name varchar(200) NOT NULL,"\
                                       "institution_name varchar(500),"\
                                       "PRIMARY KEY(work_id, author_name, institution_name)) DEFAULT CHARSET=utf8;" % self.author_table
             self.mysql_helper.execute(author_create_table_sql)
@@ -136,7 +143,7 @@ class Json2Xml:
         #    print collection_title
         #sys.exit(0)
 
-        article_info_table = "article_info_test"
+        article_info_table = "wiley_20180110"
         author_sql = "select * from article_author where work_id in (select work_id from %s)" % article_info_table
         authors = self.mysql_helper.query_all(author_sql)
         self.author_map = {}
@@ -149,7 +156,7 @@ class Json2Xml:
             else:
                 self.author_map[work_id].append(author)
 
-        sql = "select * from article_info_test"
+        sql = "select * from %s" % article_info_table
         articles = self.mysql_helper.query_all(sql)
         for article_info in articles:
             self.convert_to_xml_from_database(article_info)
@@ -159,7 +166,7 @@ class Json2Xml:
         url = self.get_article_field(article_info, "access_url")
         self.url = url
         self.current_url = url
-        print "process %s" % url
+        #print "process %s" % url
         volume = self.get_article_field(article_info, "volume").replace("vol.", "").strip()
         issue = self.get_article_field(article_info, "issue").replace("no.", "")
 
@@ -175,7 +182,7 @@ class Json2Xml:
 
         #publish_date比如是2017-12-18这种格式,如果缺少『日』,那么就默认为1
         publish_date_elems = publish_date.split('-')
-        print "publish_date: %s" % publish_date
+        #print "publish_date: %s" % publish_date
         if len(publish_date_elems) == 1:
             pass
         elif len(publish_date_elems) == 2:
@@ -201,7 +208,7 @@ class Json2Xml:
         create_time_text = self.get_article_field(article_info, "create_time")
 
         #create time必须按照格式来，不然xml校验通过不了
-        print "create time :%s" % create_time_text
+        #print "create time :%s" % create_time_text
         create_time_obj = datetime.datetime.strptime(str(create_time_text), "%Y-%m-%d %H:%M:%S")
         create_time_text = create_time_obj.strftime('%Y-%m-%dT%H:%M:%S')
 
@@ -293,6 +300,8 @@ class Json2Xml:
         index = 0
 
         if article_id not in self.author_map:
+            print "cannot find author info for work_id :%s, url :%s" % (article_id, url)
+            return
             raise Exception("cannot find author info for work_id :%s" % work_id)
 
         author_infos = {}
@@ -450,37 +459,80 @@ class Json2Xml:
         revision_time.appendChild(doc.createTextNode(str(create_time_text)))
 
         #print article_info
-        print "save to :%s" % xml_file_path
+        #print "save to :%s" % xml_file_path
         xml_str = doc.toprettyxml(indent="  ").encode('utf-8')
         with open(xml_file_path, "w") as f:
             f.write(xml_str)
 
     def convert_to_xml(self, article_info):
-        source_name_str = "Wiley"
-
         url = self.get_article_field(article_info, "access_url")
         self.url = url
-        volume = self.get_article_field(article_info, "volumn").replace("vol.", "").strip()
+
+        journal_name = self.get_article_field(article_info, "journal", throw_exception = False)
+        journal_not_found = False
+        if journal_name != "":
+          if (journal_name.lower() not in self.all_journal_meta):
+              if journal_name.upper() in self.journal_name_map:
+                  converted_journal_name = self.journal_name_map[journal_name.upper()]
+                  if converted_journal_name.lower() not in self.all_journal_meta:
+                      print "cannot find meta info for converted_journal_name journal: %s" % converted_journal_name.lower()
+                      journal_not_found = True
+                  else:
+                      journal_name = converted_journal_name
+              else:
+                  #print "cannot find meta info for journal: %s" % (journal_name.encode('utf-8').upper())
+                  journal_not_found = True
+        else:
+          journal_not_found = True
+
+        if journal_not_found:
+          #元数据里面没有journal_name，或者元数据里的journal name和excel不一致
+          #那么从excel表里面获取
+          domain_url = self._get_domain_url(url)
+          if domain_url in self.journal_url_to_name:
+            journal_name = self.journal_url_to_name[domain_url]
+          else:
+            raise Exception("can not get journal from either meta info or xls, domain:%s" % domain_url)
+          
+        #过滤太老的article
+        try:
+            date = self.get_article_field(article_info, "publish_year")
+        except Exception  as e:
+            print "date is empty: %s" % self.url
+            return
+
+        if date == "":
+            print "date is empty: %s" % url
+            return
+
+        if (int(date) < 2015):
+            print "too old issue: %s" % date
+            return
+            
+        if journal_not_found:
+            #raise Exception("cannot find meta info for journal: %s" % journal_name)
+            #print "cannot find meta info for journal: %s,%s" % (journal_name, url)
+            print "cannot find meta info for journal: %s" % (journal_name.encode('utf-8'))
+            return
+            
+        journal_meta = self.all_journal_meta[journal_name.lower()]
+
+        source_name_str = journal_meta['source_name']
+
+        volume = self.get_article_field(article_info, "volume").replace("vol.", "").strip()
         issue = self.get_article_field(article_info, "issue").replace("no.", "")
-        legex_issue = re.compile(r"[\d-]+")
-        if volume == "" or issue == "" or not legex_issue.match(issue): 
+        #legex_issue = re.compile(r"[\d-]+") //issue也可以不是数字
+        if volume == "" or issue == "": #or not legex_issue.match(issue): 
             print "invalid volume and issue(%s, %s): %s" % (volume, issue, self.url)
             return
-        journal_name = self.get_article_field(article_info, "journal")
-        doi = self.get_article_field(article_info, "doi")
+        doi = self.get_article_field(article_info, "doi", throw_exception = False) #doi为空..
         title = self.get_article_field(article_info, "title")
         abstract = self.get_article_field(article_info, "abstract", throw_exception = False).replace("View Full-Text", "").strip()
         if abstract == "":
             #print "abstract is empty: %s" % self.url
             #return
             pass
-        try:
-            #date = self.get_article_field(article_info, "publish_date")
-            date = self.get_article_field(article_info, "publish_year")
-        except Exception  as e:
-            print "date is empty: %s" % self.url
-            return
-            
+
         xlink = self.get_article_field(article_info, "xlink", throw_exception = False)
         if xlink == "":
             xlink = "https://creativecommons.org/licenses/by/4.0/"
@@ -489,27 +541,6 @@ class Json2Xml:
             license_text = "This is an open access article distributed under the Creative Commons Attribution License which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited. (CC BY 4.0)."
         copyright_text = self.get_article_field(article_info, "copyright", throw_exception = False)
         self.current_url = url
-
-        journal_not_found = False
-        if (journal_name.lower() not in self.all_journal_meta):
-            if journal_name.upper() in self.journal_name_map:
-                converted_journal_name = self.journal_name_map[journal_name.upper()]
-                if converted_journal_name.lower() not in self.all_journal_meta:
-                    print "cannot find meta info for converted_journal_name journal: %s" % converted_journal_name.lower()
-                    journal_not_found = True
-                else:
-                    journal_name = converted_journal_name
-            else:
-                print "cannot find meta info for journal: %s" % (journal_name.encode('utf-8').upper())
-                journal_not_found = True
-
-        if journal_not_found:
-            #raise Exception("cannot find meta info for journal: %s" % journal_name)
-            #print "cannot find meta info for journal: %s,%s" % (journal_name, url)
-            print "cannot find meta info for journal: %s" % (journal_name.encode('utf-8'))
-            return
-            
-        journal_meta = self.all_journal_meta[journal_name.lower()]
 
         #Anthor journal publish date may not like "18 August 2017"
         publish_date  = self.get_article_field(article_info, "publish_date")
@@ -535,41 +566,41 @@ class Json2Xml:
 
         try:
             authors = self.get_article_field(article_info, "author", False)
-            author_affiliation = self.get_article_field(article_info, "author_affiliation", False)
+            try:
+              author_affiliation = self.get_article_field(article_info, "author_affiliation", False)
+            except Exception as e:
+              author_affiliation = ["unkonwn"] * len(authors) #可能没有作者机构
+
             author_affiliation = filter(lambda x: self.filter_author_affiliation(x), author_affiliation)
             if "author_sup" in article_info:
                 author_sup = self.get_article_field(article_info, "author_sup", False)
                 author_sup = self.format_author_sup(len(authors), author_sup)
             else:
                 #如果没有author_sup这个字段，说明作者作何机构是一一对应的,生成一个假的author_sup
-                #此时，authors 和 author_affiliation的size应该一样
+                #已知有以下几种情况：
+                #a:author_affiliation数目不为1，此时，authors 和 author_affiliation的size应该一样
+                #b:author_affiliation数目为1，那么所有的作者都属于这个机构
                 author_sup = range(1, len(authors) + 1)
                 if len(authors) != len(author_affiliation):
-                    print("url %s, size of authors(%d) and author_affiliation(%d) should be equal when author_sup not set!"\
-                    % (self.url, len(authors), len(author_affiliation)))
-                    return
+                    if len(author_affiliation) == 1:
+                        author_sup = [0] * len(authors)
+                    else:
+                        print("url %s, size of authors(%d) and author_affiliation(%d) should be equal when author_sup not set!"\
+                            % (self.url, len(authors), len(author_affiliation)))
+                        return
+            if len(authors) != len(author_sup):
+                print "authors and authos_sup len not equal, This not gonna happen: %s" % url
+                return
+            
+            if len(author_sup) < 1:
+                print "no author, not gonna happen :%s" % url
+                return
+
         except Exception as e:
             print "author_affiliation fail :%s, reson %s" % (self.url, e.message)
             return
         
         output_meta = {}
-
-        if len(authors) != len(author_sup):
-            print "authors and authos_sup len not equal, This not gonna happen: %s" % url
-            return
-        
-        if len(author_sup) < 1:
-            print "no author, not gonna happen :%s" % url
-            return
-
-        if date == "":
-            print "date is empty: %s" % url
-            return
-
-        if (int(date) < 2015):
-            print "too old issue: %s" % date
-            #ignore too old issue
-            return
 
         if source_name_str == "Scielo":
             url_pattern = re.compile(r".*script=.*&pid=S.{4}\-.{4}(?P<date>\d{4}).{9}&lng=.*")
@@ -751,7 +782,6 @@ class Json2Xml:
         #start_page.appendChild(doc.createTextNode("1"))
         #end_page = doc.createElement("nstl_ors:end_page")
         #work_meta.appendChild(end_page)
-        #end_page.appendChild(doc.createTextNode("1"))
 
         country = doc.createElement("nstl_ors:country")
         work_meta.appendChild(country)
@@ -902,6 +932,11 @@ class Json2Xml:
     def save_article_author_info(self, article_author_info):
         self.mysql_helper.insert(self.author_table, article_author_info)
 
+    def _get_domain_url(self, url):
+      journal_url = urlparse.urljoin(url, '/').replace("https", "http")
+      url = urlparse.urljoin(url, '/').replace("https", "http").replace("www.", "")
+      return url
+
     def load_journal_meta(self, all_journal_meta_xls):
         """
         Load all journal meta info from xls file
@@ -925,7 +960,7 @@ class Json2Xml:
 
             #print "load journal :%s" % journal.encode("utf-8")
 
-            print "%s,%s" % (rowValues[9], rowValues[23])
+            #print "%s,%s" % (rowValues[9], rowValues[23])
 
             self.all_journal_meta[journal] = {
             'journal_id': rowValues[0],
@@ -934,8 +969,12 @@ class Json2Xml:
             'country': rowValues[5],
             'language': rowValues[6], 'license_type': rowValues[17], 'license_text': rowValues[18], 'oa_type': rowValues[19], 
             'available_time': rowValues[20],
-            'platform_url': rowValues[27], 'system_id': rowValues[40],
+            'platform_url': rowValues[27], 'source_name': rowValues[28], 'system_id': rowValues[40],
             'collection_id': rowValues[43], 'source_id': rowValues[44]}
+            
+            journal_url = self._get_domain_url(rowValues[23])
+            self.journal_url_to_name[journal_url] = journal
+
 
     def get_journal_id(self, journal_name):
         """
@@ -1010,13 +1049,26 @@ class Json2Xml:
             ret = ret.decode('latin1')
         except Exception as e:
             pass
+
+        if ret is None:
+            ret = ""
         return ret
 
 if __name__ == "__main__":
-    journal_meta = sys.argv[1]
-    input_filename = sys.argv[2]
-    save_path = sys.argv[3]
-
-    json2xml = Json2Xml(journal_meta, input_filename, save_path)
+    if len(sys.argv) == 4:
+        journal_meta = sys.argv[1]
+        input_filename = sys.argv[2]
+        save_path = sys.argv[3]
+        table_suffix = None
+    elif len(sys.argv) == 5:
+        journal_meta = sys.argv[1]
+        input_filename = sys.argv[2]
+        save_path = sys.argv[3]
+        table_suffix = sys.argv[4]
+    else:
+        print "Usage: python json2xml.py jounal_meta input_filename save_path [table_suffix]"
+        sys.exit(1)
+        
+    json2xml = Json2Xml(journal_meta, input_filename, save_path, table_suffix = table_suffix)
     json2xml.convert()
     #json2xml.convert_from_database()

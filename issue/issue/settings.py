@@ -18,6 +18,7 @@ NEWSPIDER_MODULE = 'issue.spiders'
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
 #USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1'
+USER_AGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.2pre) Gecko/20070215 K-Ninja/2.1.1'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -28,10 +29,10 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 10
 # The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 5
-CONCURRENT_REQUESTS_PER_IP = 5
+CONCURRENT_REQUESTS_PER_DOMAIN = 3
+CONCURRENT_REQUESTS_PER_IP = 3
 
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
@@ -92,10 +93,32 @@ CONCURRENT_REQUESTS_PER_IP = 5
 
 FEED_EXPORT_ENCODING = 'utf-8'
 COOKIES_ENABLES = False
+PROXIES = [
+    {'ip_port': '14.29.47.90:3128', 'user_pass': None},
+    {'ip_port': '211.159.177.212:3128', 'user_pass': None},
+    {'ip_port': '111.230.165.16:3128', 'user_pass': None},
+    {'ip_port': '120.26.14.14:3128', 'user_pass': None},
+    {'ip_port': '59.67.152.230:3128', 'user_pass': None},
+    {'ip_port': '119.28.152.208:80', 'user_pass': None},
+    {'ip_port': '122.72.18.34:80', 'user_pass': None},
+    {'ip_port': '122.72.18.35:80', 'user_pass': None},
+    {'ip_port': '219.135.164.245:3128', 'user_pass': None},
+    {'ip_port': '114.215.95.188:3128', 'user_pass': None},
+    {'ip_port': '101.132.121.157:9000', 'user_pass': None},
+    {'ip_port': '139.129.166.68:3128', 'user_pass': None},
+    {'ip_port': '203.174.112.13:3128', 'user_pass': None},
+    {'ip_port': '118.212.137.135:31288', 'user_pass': None},
+    {'ip_port': '222.186.45.117:55336', 'user_pass': None},
+    {'ip_port': '27.44.162.135:9999', 'user_pass': None},
+    {'ip_port': '218.20.54.152:9797', 'user_pass': None},
+]
+
 #取消默认的useragent,使用新的useragent
 DOWNLOADER_MIDDLEWARES = {
         'scrapy.downloadermiddleware.useragent.UserAgentMiddleware' : None,
         'scrapy.downloadermiddleware.redirect.RedirectMiddleware' : None,
         'issue.rotate_useragent.RotateUserAgentMiddleware' : 500,
-        'issue.custom_redirect.CustomRedirectMiddleware' : 600
+        'issue.custom_redirect.CustomRedirectMiddleware' : 600,
+        #'scrapy.contrib.downloadermiddleware.httpproxy.HttpProxyMiddleware': 110,
+        #'issue.rotate_useragent.ProxyMiddleware': 100,
 }
