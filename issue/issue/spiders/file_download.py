@@ -11,6 +11,7 @@ import errno
 import random
 import time
 import json
+import shutil
 from scrapy.http.request import Request
 from utils import  Utils
 
@@ -84,13 +85,22 @@ class FileDownload(scrapy.Spider):
                 if Utils.is_json_string(line):
                     json_data = json.loads(line)
                     try:
-                        doi = Utils.format_value(json_data['doi']).replace("DOI:", "").strip()
-                        filename = Utils.doi_to_filname(doi) + ".pdf"
-                    except Exception:
+                        if "pdf_path" in json_data:
+                            filename = json_data["pdf_path"]
+                        else:
+                            if "doi" in json_data:
+                                doi = Utils.format_value(json_data['doi']).replace("DOI:", "").strip()
+                                filename = Utils.doi_to_filname(doi)
+                            else:
+                                download_url = json_data["pdf_url"]
+                                filename = "_".join(download_url.split('/')[-2:]) + ".pdf"
+                        if not filename.endswith(".pdf"):
+                            filename = filename + ".pdf"
+                    except Exception as e:
                         self.meta_error = self.meta_error + 1
                         self._print_download_status()
                         continue
-                    download_url = Utils.format_value(json_data['pdf_link'])
+                    download_url = Utils.format_value(json_data['pdf_url'])
                     #download_url = json_data['pdf_url']
                 else:
                     infos = line.split('|')
@@ -100,6 +110,8 @@ class FileDownload(scrapy.Spider):
                         filename = "_".join(download_url.split('/')[-1:]) + ".pdf"
                     else:
                         filename = infos[0]
+                        if filename.find("pdf") == -1 and filename.find("txt") == -1:
+                            filename = filename + ".pdf"
                         download_url = infos[1].strip()
                 if download_url == '':
                     continue
@@ -107,9 +119,9 @@ class FileDownload(scrapy.Spider):
                 pdf_path = filename
                 #print "origin filename: %s" % line
                 pdf_path = pdf_path.replace(":", "_")
-                pdf_path = pdf_path.replace("/", "_")
+                #pdf_path = pdf_path.replace("/", "_")
                 if self.save_dir != "":
-                    pdf_path = self.save_dir + "\\" + pdf_path
+                    pdf_path = os.path.join(self.save_dir,pdf_path)
 
                 another_pdf_path =  pdf_path.replace("txt", "pdf")
                 if os.path.exists(pdf_path) or os.path.exists(another_pdf_path):
@@ -130,21 +142,35 @@ class FileDownload(scrapy.Spider):
                     if self.is_worldbank:
                         download_url = download_url + "?download=true"
                         #time.sleep(random.randint(30,60))
+                    #download_url = "https://www.sciencedirect.com" + download_url
                     yield Request(download_url, self.download_file, meta = meta, dont_filter=True)
                 except Exception as e:
+                    raise Exception(e)
                     pass
 
     def download_file(self, response):
+        
         filename = response.meta['filename']
         filename = filename.replace(":", "_")
-        filename = filename.replace("/", "_")
+        #filename = filename.replace("/", "_")
         if self.save_dir != "":
-            filename = self.save_dir + "\\" + filename
+            filename = os.path.join(self.save_dir, filename)
 
-        print "status is :%s" % response.status
+        dirname = os.path.dirname(filename)
+        if not os.path.exists(dirname):
+            print "make dir: %s" % dirname
+            os.makedirs(dirname)
 
         #是否是pdf文档还真的不太好判断，比如对于wiley的
         if not self._content_is_pdf(response):
+            #下载sciencedirect的时候，发现pdf原始网页打开是一个html，这个html包含了cdn分配的pdf地址
+            redict_url = response.xpath("//*[@id='redirect-message']//a/@href")
+            if len(redict_url) != 0:
+                redict_url = redict_url.extract_first()
+                meta = {"filename": response.meta['filename']}
+                yield Request(redict_url, self.download_file, meta = meta, dont_filter=True)
+            return
+
             if not self.download_txt:
                 self.pdf_error_file_write.write(response.url)
                 self.pdf_error_file_write.write("\n")
@@ -187,7 +213,6 @@ class FileDownload(scrapy.Spider):
     def _print_download_status(self):
         print "%s:meta_error_count is :%d, pdf_error_count is :%d, exist_count: %d, pdf_download_count is %d, txt_download_count: %d" \
               % (Utils.current_time(), self.meta_error, self.pdf_error_count, self.pdf_exist_count, self.download_count, self.txt_download_count)
-
 
     #国研网有的详情页是需要从网页上下载得到txt文件
     def download_guoyan_content(self, response):

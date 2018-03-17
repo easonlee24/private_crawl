@@ -394,13 +394,13 @@ class MetaCheck(object):
                 self.pdf_exist = self.pdf_exist + 1
             else:
                 #print "pdf path(%s) or txt path(%s) not exist" % (pdf_path, txt_path)
-                convert_data["pdf_path"] = "wrong"
-                self.pdf_non_exist = self.pdf_non_exist + 1
                 pdf_link = self._get_value(json_data, "pdf_url")
-                if pdf_link == "":
-                    raise Exception("cannot get pdf_url from json %s" % json_data)
-                self.miss_pdf_writer.write(pdf_link)
-                self.miss_pdf_writer.write("\n")
+                if pdf_link != "":
+                    convert_data["pdf_path"] = "wrong"
+                    self.pdf_non_exist = self.pdf_non_exist + 1
+                
+                    self.miss_pdf_writer.write(pdf_link)
+                    self.miss_pdf_writer.write("\n")
 
         #去掉一些key
         json_data.pop('_template', None)
