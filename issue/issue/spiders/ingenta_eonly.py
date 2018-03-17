@@ -73,10 +73,12 @@ class Ingenta(scrapy.Spider):
         for elem in articles_xpath:
             access_url = urlparse.urljoin(response.url,
                                           elem.xpath(".//div[@class='ie5searchwrap']//a/@href").extract_first().strip())
+            title = elem.xpath(".//div[@class='ie5searchwrap']//a/@title").extract_first().strip()
             pages = elem.xpath(".//div[@class='ie5searchwrap']//br[1]").xpath(
                 "following-sibling::text()[1]").extract_first().strip()
             meta['access_url'] = access_url
             meta['pages'] = pages
+            meta['title'] = title
             yield response.follow(access_url, self.parse_article, meta=meta)
 
     def parse_article(self, response):
@@ -87,7 +89,8 @@ class Ingenta(scrapy.Spider):
                 'issue_url': response.meta['issue_url'],
                 'volume_issue_yearInfo': response.meta['volume_issue_yearInfo'],
                 'access_url': response.meta['access_url'],
-                'pages': response.meta['pages']
+                'pages': response.meta['pages'],
+                'title': response.meta['title']
                 }
         abstract = "".join(response.xpath(".//div[@id='Abst']//text()").extract()).strip()
         # if abstract.__contains__("No Abstract."):
