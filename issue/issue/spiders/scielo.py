@@ -4,6 +4,7 @@ import urlparse
 from utils import Utils
 from scrapy.http.request import Request
 import re
+import json
 
 """
 This sipder will continue to crawl some fields that:
@@ -20,8 +21,9 @@ class ScieloSpider(scrapy.Spider):
     def start_requests(self):
         with open(self.url_file, "rb") as f:
             for line in f:
-                issue_url = line.strip()
-                yield Request(issue_url, self.crawl_sup_2, dont_filter=True)
+                json_data = json.loads(line)
+                issue_url = json_data["access_url"]
+                yield Request(issue_url, self.crawl_sup_3, dont_filter=True)
 
     """
     发现少了一些字段
@@ -81,4 +83,21 @@ class ScieloSpider(scrapy.Spider):
             'volumn': volumn,
             'issue': issue,
             "url" : response.url
+        }
+
+    """
+    2018.08.15 补采集下面的字段：
+    2018.09.17 补采集下面的字段：
+    1、date
+    """
+    def crawl_sup_3(self, response):
+        date = response.xpath("//h3/text()").extract_first().split("/")[-1]
+        abstract = Utils.get_all_inner_texts(response, "//div[@class='abstract']")
+        title = Utils.get_all_inner_texts(response, "//p[@class='title']")
+
+        yield {
+            'access_url': response.url,
+            'date': date,
+            "abstract": abstract,
+            'title': title
         }

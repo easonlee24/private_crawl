@@ -13,8 +13,6 @@ import time
 import json
 import shutil
 from scrapy.http.request import Request
-from utils import  Utils
-
 reload(sys)
 sys.setdefaultencoding('utf8')
 

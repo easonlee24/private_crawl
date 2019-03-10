@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*- 
 import sys
 import json
 import re
@@ -17,7 +18,7 @@ with open(filename) as fp:
         line = ""
         for column in columns:
             try:
-                data = Utils.format_value(json_date[column])
+                data = Utils.format_value(json_date[column], join_char = '|')
             except Exception as e:
                 data = ""
 
@@ -28,4 +29,5 @@ with open(filename) as fp:
                 line += str(data) + split
             else:
                 line += data.replace('\n', '').replace('\t', '').strip() + split
-        print line.strip().encode('utf-8').strip(split)
+        #print line.strip().replace(u'ê', 'e').replace(u'é', 'e').replace(u'ã', 'a').replace(u'ó', 'o').replace(u'ú', 'u').strip(split)
+        print line.strip().strip(split)

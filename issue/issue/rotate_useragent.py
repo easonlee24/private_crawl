@@ -55,12 +55,12 @@ class RotateUserAgentMiddleware(UserAgentMiddleware):
 
 class ProxyMiddleware(object):
     def process_request(self, request, spider):
-        r = requests.get("http://api.ip.data5u.com/dynamic/get.html?order=4e9253326e65a220eeff54c1e023b2b8&ttl=1&sep=3")
+        r = requests.get("http://api.ip.data5u.com/dynamic/get.html?order=4e9253326e65a220eeff54c1e023b2b8&sep=3")
         infos = r.text.strip().split(",")
         ip = infos[0]
         if ip == "too many requests":
             time.sleep(2)
-            r = requests.get("http://api.ip.data5u.com/dynamic/get.html?order=4e9253326e65a220eeff54c1e023b2b8&ttl=1&sep=3")
+            r = requests.get("http://api.ip.data5u.com/dynamic/get.html?order=4e9253326e65a220eeff54c1e023b2b8&sep=3")
             infos = r.text.strip().split(",")
             ip = infos[0]
         print "use proxy ip: %s" % ip
