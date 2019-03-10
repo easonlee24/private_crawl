@@ -7,6 +7,7 @@ from datetime import datetime
 from spiders.utils import Utils
 import argparse
 import os
+from w3lib.html import remove_tags
 
 """
 Meta检查，同时对key做一些归一化的操作
@@ -39,6 +40,9 @@ class MetaCheck(object):
         ]
 
         self.required_keys = [
+            "title",
+            "release_date",
+            "doi",
             #"abstracts",
             #sage的 issue和pages有些确实为空。。。
             #"issue",
@@ -53,10 +57,14 @@ class MetaCheck(object):
             "pdf_download" : "pdf_url",
             "date" : "release_date",
             "publish_date" : "release_date",
+            "publish_year" : "release_year",
             "author_afflication" : "author_affiliation",
             "author_affiliations" : "author_affiliation",
             "author_affliation" : "author_affiliation",
-            "volumn": "volume"
+            "volumn": "volume",
+            "author_raw" : "author",
+            "author_affiliation_raw" : "author_affiliation",
+            "DOI" : "doi"
         }
 
         self._init()
@@ -89,7 +97,72 @@ class MetaCheck(object):
 
         if access_url.find("intechopen.com") != -1:
             json_data =  self._transform_intechopen(json_data)
+        elif access_url.find("wiley.com") != -1:
+            json_data =  self._transform_wiley(json_data)
+        elif access_url.find("scielo") != -1:
+            json_data =  self._transform_scielo(json_data)
+        elif access_url.find("sagepub") != -1:
+            json_data = self._transform_sage(json_data)
+        elif access_url.find("pensoft") != -1:
+            json_data = self._transform_pensoft(json_data)
 
+        return json_data
+
+    def _transform_sage(self, json_data):
+        #用portia爬取的sage，少了doi
+        doi = self._get_value(json_data, "doi")
+        if doi == "":
+            doi = Utils.regex_extract(self._get_value(json_data, "access_url"), ".*sagepub.com/doi/full/(.*)")
+            json_data["doi"] = doi
+        return json_data
+        
+    def _transform_pensoft(self, json_data):
+        #用portia爬取的sage，少了doi
+        json_data["page"] = "%s-%s" % (json_data["fpage"], json_data["lpage"])
+        author_elems = json_data["authors"].split(";")
+        authors = []
+        author_affliications = []
+        author_sups = []
+        index = 1
+        for author_elem in author_elems:
+            elems = author_elem.split("@@")
+            if len(elems) != 2:
+                continue
+            authors.append(elems[0])
+            author_affliications.append(elems[1])
+            author_sups.append(str(index))
+            index = index + 1
+        json_data["author"] = authors
+        json_data["author_affliication"] = author_affliications
+        json_data["author_sub"] = author_sups
+        return json_data
+
+    def _transform_scielo(self, json_data):
+        if type(json_data["date"]) is list:
+            tmp = " ".join(json_data["date"])
+        else:
+            tmp = json_data["date"]
+        dates = tmp.encode("utf-8").replace("\xa0", " ").replace("\xc2", " ").replace(".", "").split()
+
+        if len(dates) == 1:
+            date = dates[0]
+        else:
+            try:
+                date = Utils.format_datetime(" ".join(dates[-2:]))
+            except Exception:
+                try:
+                    date = Utils.format_datetime(" ".join(dates[-3:]))
+                except Exception:
+                    date = "%s-08-01" % dates[-1]
+
+        json_data["release_date"] = date
+        return json_data
+
+    def _transform_wiley(self, json_data):
+        doi = self._get_value(json_data, "doi")
+        if doi == "":
+            doi = Utils.regex_extract(self._get_value(json_data, "access_url"), ".*onlinelibrary.wiley.com/doi/(.*)")
+            json_data["doi"] = doi
         return json_data
 
     def _transform_intechopen(self, json_data):
@@ -163,6 +236,9 @@ class MetaCheck(object):
         return json_data
         
     def start(self):
+        #a = "<font size=\"5\"><a name=\"top1\"></a>Efeito de fungicidas na    germinação <i>in vitro</i> de conídios de <i>Claviceps    africana</i><sup>(<a href=\"#back1\">1</a>)</sup></font>"
+        #self._format_scielo_authors(a)
+        #sys.exit(0)
         with open(self.meta_file) as f:
             for line in f:
                 try:
@@ -238,8 +314,8 @@ class MetaCheck(object):
                 if access_url in self.pass_meta_map:
                     title = self._get_value(json_data, "title")
                     if title != self.pass_meta_map[access_url]:
-                        #pass
-                        raise Exception("same url with different title, not gonna happen :%s" % access_url)
+                        pass
+                        #raise Exception("same url with different title, not gonna happen :%s" % access_url)
                     self.dup = self.dup + 1
                     continue
 
@@ -318,7 +394,6 @@ class MetaCheck(object):
                     print "%s" % line
 
     def _verify_args(self, required_args, help_message):
-        print self.args
         for arg in required_args:
             if not hasattr(self.args, arg):
                 raise Exception("%s need to be set, usage: %s" % (arg, help_message))
@@ -344,8 +419,7 @@ class MetaCheck(object):
         value = default
         if key in json_data:
             value = json_data[key]
-        
-        if key in self.reverse_key_map:
+        elif key in self.reverse_key_map:
             for alias_key in self.reverse_key_map[key]:
                 if alias_key in json_data:
                     value =  json_data[alias_key]
@@ -358,11 +432,12 @@ class MetaCheck(object):
         if key == "release_date":
             if type(ret) is not list:
                 ret = ret.replace("00:00:00", "")
+                ret = Utils.format_datetime(ret)
             else:
+                if len(ret) == 0:
+                    return ""
                 ret[0] = ret[0].replace("00:00:00", "")
-            
-            ret = Utils.format_datetime(ret)
-
+                ret[0] = Utils.format_datetime(ret[0])
         return ret
 
     def _key_exist(self, json_data, key):
@@ -392,6 +467,11 @@ class MetaCheck(object):
             json_data["keywords"] = keywords.split(";")
             if len(json_data["keywords"]) == 1:
               json_data["keywords"] = keywords.split(",")
+          elif self.for_oa and type(json_data["keywords"]) is not list:
+            keywords = json_data["keywords"].replace("Index terms:", "").replace("Keywords", "").split(";")
+            json_data["keywords"] = keywords
+            
+            #如果是oa，且keywords不是list，要转化为list
 
         convert_data = {}
         for key, value in json_data.iteritems():
@@ -406,35 +486,56 @@ class MetaCheck(object):
             else:
                 convert = not self.for_oa
 
-            value = self._get_value(json_data, key, convert = convert) #这里使用_get_value,会对value做一些归一化
-
+            value = self._get_value(json_data, format_key, convert = convert) #这里使用_get_value,会对value做一些归一化
             convert_data[format_key] = value
 
         # 归一化作者和作者机构
-        if 'author' in convert_data and len(convert_data["author"]) == 1:#这种author可能是一坨html，包含了多个作者并且每个作者的sup也标记在<sup>里面
+        is_scielo = False
+        if is_scielo:
+            #2018.04.18 崩溃了，scielo的作者单独处理
+            if convert_data["author"][0].find("<") != -1:
+                author_raw_text = " ".join(convert_data["author"])
+                authors = self._format_scielo_authors(author_raw_text)
+                convert_data['author'] = authors
+
+            convert_data.pop("author_affiliation", None)
+        elif 'author' in convert_data and len(convert_data["author"]) == 1:#这种author可能是一坨html，包含了多个作者并且每个作者的sup也标记在<sup>里面
             #这种情况属于作者机构不太好爬，直接把html文档都爬取到author字段了
             authors, author_sups = self._format_authors(convert_data)
             if 'author_sup' not in convert_data:
                 convert_data['author_sup'] = author_sups
             else:
                 convert_data['author_sup'] = [self._format_author_sup(sup) for sup in convert_data['author_sup']]
-
             if len(authors) == 1:
               #如果此时author还是只有一个元素，那么author可能是,分隔的
               authors = authors[0].split(",")
 
             convert_data['author'] = authors
 
+        if 'author_sup' in convert_data:
+            convert_data['author_sup'] = [self._format_author_sup(sup) for sup in convert_data['author_sup']]
+
         if "author_affiliation" in convert_data and len(convert_data['author_affiliation']) == 1:
             #这种author_affiliation可能是一坨html
             author_affiliation = convert_data['author_affiliation'][0]
-            authors = convert_data['author']
-            if author_affiliation.startswith(authors[0]):
-              #这种作者机构是以作者分隔的,比如:https://koedoe.co.za/index.php/koedoe/article/view/188
-              author_affiliation = self._format_author_affiliations_by_author(author_affiliation, authors)
-            else:
-              author_affiliation = self._format_author_affiliations(convert_data)
-            convert_data['author_affiliation'] = author_affiliation
+            try:
+                authors = convert_data['author']
+                if author_affiliation.startswith(authors[0]):
+                  #这种作者机构是以作者分隔的,比如:https://koedoe.co.za/index.php/koedoe/article/view/188
+                  author_affiliation = self._format_author_affiliations_by_author(author_affiliation, authors)
+                else:
+                  author_affiliation = self._format_author_affiliations(convert_data)
+                convert_data['author_affiliation'] = author_affiliation
+            except Exception as e:
+                #没爬到作者，却爬到了作者机构，先忽略这种情况吧
+                authors = []
+                convert_data['author_affiliation'] = []
+                convert_data['author'] = []
+                convert_data['author_sup'] = []
+
+        #有的author_sup里面，会有空字符串，比如scielo
+        if "author_sup" in convert_data and type(convert_data["author_sup"]) is list:
+            convert_data["author_sup"] = [i for i in convert_data["author_sup"] if i != '']
 
         if self.args.pdf_dir is not None:
             filename = Utils.get_pdf_filename(json_data)
@@ -458,10 +559,15 @@ class MetaCheck(object):
 
         #归一化author,author_affiliation
         if not self.for_oa:
-            convert_data = Utils.format_authors_from_json(convert_data)
+            pass
+            #convert_data = Utils.format_authors_from_json(convert_data)
 
         #去掉一些key
-        convert_data.pop("author_sup", None)
+        if not self.for_oa:
+            convert_data.pop("author_sup", None)
+        else:
+            #oa的需要特别处理下
+            convert_data["doi"] = self._get_value(convert_data, "doi").replace("https://doi.org/", "").replace("http://doi.org/", "")
         convert_data.pop('_template', None)
 
         convert_data_str = json.dumps(convert_data)
@@ -473,6 +579,49 @@ class MetaCheck(object):
     """
     def _get_author_split_char(self, convert_data):
         return "|"
+
+
+    def _format_scielo_authors(self, author_raw_text):
+        authors = []
+        author_index = 0
+        sup_start = sup_end = author_index
+        while author_index < len(author_raw_text) - 1 and sup_start!= -1 and sup_end != -1:
+            sup_start = author_raw_text.find("<sup>", sup_start + 1)
+            sup_end = author_raw_text.find("</sup>", sup_start + 1)
+            print "author_index: %d, sup_start: %d, sup_end : %d" % (author_index, sup_start, sup_end)
+            if sup_start == -1 or sup_end == -1:
+                break
+            is_sup_value_int = True
+            try:
+                sup_value = remove_tags(author_raw_text[sup_start + len("<sup>"): sup_end]).strip()
+                sup_value = re.sub('[()]', '', sup_value)
+                roma_number = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']
+                print "raw sup_vaule :%s" % sup_value
+                if sup_value not in roma_number:
+                    sup_value = int(sup_value)
+                    print "sup_vaule is int :%d" % sup_value
+                else:
+                    print "sup_vaule is int :%s" % sup_value
+            except Exception as e:
+                print "sup_value is not int: %s" % sup_value
+                is_sup_value_int = False
+
+            if is_sup_value_int:
+                #找到了一个新的作者
+                author_text = author_raw_text[author_index: sup_start].strip(';').strip()
+                author_text = remove_tags(author_text).strip()
+                author_text = re.sub('[(),]', ' ', author_text)
+                author_text = re.sub(' +', ' ', author_text)
+                authors.append(author_text)
+                author_index = sup_end + len("</sup>")
+                sup_start = sup_end = author_index
+
+            #否则找到的这个<sup>对并不是<sup>1</sup>这种
+        print "author_raw_text :%s" % author_raw_text.encode("utf-8")
+        print "return author:"
+        print authors
+        #sys.exit(0)
+        return authors
 
     """
     for example:
@@ -573,8 +722,11 @@ class MetaCheck(object):
                 origin_sup: 1-4
                 return: 1,2,3,4
         """
-        origin_sup = origin_sup.replace(" ", "")
+        origin_sup = origin_sup.encode("utf-8").replace(" ", "").replace("–", "-").strip("").strip(",").replace(",", "-")
         origin_sup = "".join([str(ord(sup) - ord('a') + 1) if sup.isalpha() else sup for sup in origin_sup])
+        origin_sup = Utils.regex_extract(origin_sup, "\w*(\d+)")
+        if origin_sup == "":
+            origin_sup = '1'
         sups = origin_sup.split(",")
         res = []
         for sup in sups:
@@ -587,7 +739,9 @@ class MetaCheck(object):
                 res.extend(range(start, end + 1))
             else:
                 res.append(sup)
-        return ",".join([str(e) for e in res])    
+
+        ret = ",".join([str(e) for e in res])    
+        return ret
     def _mark_bad_record(self, bad_record):
         """
         Mark an bad record

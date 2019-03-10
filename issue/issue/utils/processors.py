@@ -1,3 +1,4 @@
+#coding=utf-8
 import inspect
 import re
 import six
@@ -16,6 +17,7 @@ from scrapy.loader.processors import Identity as _Identity
 from scrapy.utils.markup import unquote_markup
 from w3lib.html import remove_tags
 from .parser import SafeHtmlParser
+from ..spiders.utils import Utils
 
 
 # Regeps from Scrapely_CSS_IMAGERE.pattern
@@ -118,7 +120,8 @@ class Text(BaseProcessor):
         return [remove_tags(v).strip()
                 if v and isinstance(v, six.string_types) else v
                 for v in values]
-
+    def _remove_strip(origin):
+        return origin.replace("\n", "").replace("\t", "")
 
 class Number(BaseProcessor):
     def __call__(self, values):
@@ -153,7 +156,7 @@ class Price(BaseProcessor):
 
 
 class Date(Text):
-    def __init__(self, format='%Y-%m-%dT%H:%M:%S'):
+    def __init__(self, format='%Y-%m-%d'):
         self.format = format
 
     def __call__(self, values):
@@ -163,9 +166,11 @@ class Date(Text):
             if isinstance(text, (dict, list)):
                 dates.append(text)
             try:
-                date = DateDataParser().get_date_data(text)['date_obj']
+                date = DateDataParser(settings={'PREFER_DAY_OF_MONTH': 'first'}).get_date_data(text)['date_obj']
                 dates.append(date.strftime(self.format))
             except ValueError:
+                pass
+            except AttributeError:
                 pass
         return dates
 
@@ -232,3 +237,65 @@ class Regex(BaseProcessor):
     def __deepcopy__(self, memo):
         """Overwrite deepcopy so that the regexp is recalculated."""
         return type(self)(deepcopy(self.regexp, memo))
+
+#folowing processors are added by us(lizhen05, chenlu, zp.....)
+class Doi(Text):
+    def __call__(self, values, loader_context=None):
+        values = super(Doi, self).__call__(values)
+        datas = []
+        for value in values:
+            if isinstance(value, (dict, list)):
+                datas.append(value)
+
+            """
+            目前发现的doi格式:
+            1. doi: xxxx
+            """
+            data = value.replace("doi:", "").strip()
+            datas.append(data)
+        return datas
+
+class Abstracts(Text):
+    def __call__(self, values, loader_context=None):
+        values = super(Abstracts, self).__call__(values)
+        datas = []
+        for value in values:
+            if isinstance(value, (dict, list)):
+                datas.append(value)
+
+            """
+            目前发现的abstact格式:
+            1. abstract xxxx
+            """
+            data = value.replace("ABSTRACT", "").replace("Abstract", "").strip()
+            datas.append(data)
+        return datas
+
+class AuthorSup(Text):
+    def __call__(self, values, loader_context=None):
+        values = super(AuthorSup, self).__call__(values)
+        datas = []
+        for value in values:
+            if isinstance(value, (dict, list)):
+                datas.append(value)
+
+            data = value.replace("*", "").strip(",")
+            datas.append(data)
+        return datas
+
+class AuthorAff(Text):
+    def __call__(self, values, loader_context=None):
+        values = super(AuthorAff, self).__call__(values)
+        datas = []
+        for value in values:
+            if isinstance(value, (dict, list)):
+                datas.append(value)
+
+            ret = value
+            #ret = value.encode("utf8").replace("\xa0", " ")
+            #ret = Utils.regex_extract(ret, "[a-w] (.*)")
+            if ret == "":
+                ret = value
+
+            datas.append(ret)
+        return datas

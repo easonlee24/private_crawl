@@ -24,9 +24,9 @@ def write_excel(dataList, row0, path):
     sheet1 = f.add_sheet(u'sheet1', cell_overwrite_ok=True)
     for i in range(0, len(row0)):
         sheet1.write(0, i, row0[i], default)
-    for index in range(1, len(dataList)):
+    for index in range(0, len(dataList)):
         for i in range(0, len(row0)):
-            sheet1.write(index, i, dataList[index][i], default)
+            sheet1.write(index + 1, i, dataList[index][i], default)
     f.save(path)
 
 
@@ -56,7 +56,9 @@ if __name__ == '__main__':
                     print "unexcept str len %d:" % strlen 
                     continue
                 json_date = json.loads(line)
+                #print "id: %s" % json_date["id"]
             except Exception as e:
+                raise Exception(e)
                 continue
             data = []
             for k in row0:

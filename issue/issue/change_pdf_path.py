@@ -10,7 +10,7 @@ class ChangePdfPath:
 
     Args:
         pdf_path_info: this file contain pdf path info,it's format like following
-            [pdf_uri],[pdf_link],[doi],[xml_uri]
+            [pdf_uri],[pdf_access_url],[doi],[xml_uri]
 
         pdf_save_dir: current pdf dir that save pdf
 

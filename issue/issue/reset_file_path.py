@@ -23,6 +23,7 @@ class ChangePdfPath:
             for filename in os.listdir(dirpath):
                 origin_filepath = os.path.join(dirpath, filename)
                 new_filepath = os.path.join(self.target_dir, dirname + ".pdf")
+                print "copy file from %s to %s" % (origin_filepath, new_filepath)
                 shutil.copyfile(origin_filepath, new_filepath)
         
 

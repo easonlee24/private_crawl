@@ -41,17 +41,26 @@ class IssueSpider(CrawlSpider):
         #'http://www.tandfonline.com/loi/kwrm20',
         #'http://www.tandfonline.com/loi/kspe20'
         #'http://www.wageningenacademic.com/loi/qas'
+        'http://www.wageningenacademic.com/loi/jiff',
         #'http://onlinelibrary.wiley.com/doi/10.1111/gtc.2017.22.issue-8/issuetoc'
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1365-2435/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1469-8137/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1521-1878/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1618-2863/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)2041-210X/issues'
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1365-2435/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1469-8137/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1521-1878/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1618-2863/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)2041-210X/issues'
+        #'http://www.tandfonline.com/loi/tgnh20?open=4&year=2013&repitition=0#vol_4_2013',
+        #'http://www.tandfonline.com/loi/tcyt20',
+        #'http://www.tandfonline.com/toc/tbeq20/current',
+        #'http://www.tandfonline.com/loi/tjbd20',
+        #'http://www.tandfonline.com/loi/taar20',
+        #'http://www.tandfonline.com/loi/tejr20',
+
+        #'https://dl.sciencesocieties.org/publications/ael/index',
     ]
 
     rules = (
         # Extract links matching 'item.php' and parse them with the spider's method parse_item
-        #Rule(LinkExtractor(allow=('jvi.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
+        Rule(LinkExtractor(allow=('jvi.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
         Rule(LinkExtractor(allow=('aem.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
         Rule(LinkExtractor(allow=('jb.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
         Rule(LinkExtractor(allow=('mmbr.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
@@ -60,18 +69,12 @@ class IssueSpider(CrawlSpider):
         Rule(LinkExtractor(allow=('dl.sciencesocieties.org/publications/vzj/tocs/\d*/\d*$', )), callback='parse_journal_10'),
         Rule(LinkExtractor(allow=('dl.sciencesocieties.org/publications/nse/tocs/\d*/\d*$', )), callback='parse_journal_10'),
         Rule(LinkExtractor(allow=('dl.sciencesocieties.org/publications/jpr/tocs/\d*/\d*$', )), callback='parse_journal_10'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kcll20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kbac20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kidp20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/tjar20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kinv20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kpsb20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kjks20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kmge20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kbim20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
-        Rule(LinkExtractor(allow=('www.tandfonline.com/toc/kwrm20/\d*/\d*\?nav=tocList$', )), callback='parse_journal_100'),
+        Rule(LinkExtractor(allow=('dl.sciencesocieties.org/publications/ael/tocs/\d*/\d*$', )), callback='parse_journal_10'),
+        Rule(LinkExtractor(allow=('http://www.tandfonline.com/loi/taar20')), callback='parse_journal_tandfonline'),
+        #Rule(LinkExtractor(allow=('www.tandfonline.com/toc/\w+/\d*/\d*\?nav=tocList$', )), callback='parse_journal_tandfonline_issue'),
         Rule(LinkExtractor(allow=('onlinelibrary.wiley.com/doi/.*/.*/issuetoc', )), callback='parse_journal_wiley'),
-        Rule(LinkExtractor(allow=('www.wageningenacademic.com/toc/qas/\d+/\d+', )), callback='parse_wageningena'),
+        Rule(LinkExtractor(allow=('www.wageningenacademic.com/toc/jiff/2/\d+', )), callback='parse_wageningena'),
+        Rule(LinkExtractor(allow=('www.wageningenacademic.com/toc/jiff/3/\d+', )), callback='parse_wageningena'),
 
         # Extract links matching 'category.php' (but not matching 'subsection.php')
         # and follow links from them (since no callback means follow=True by default).
@@ -79,11 +82,11 @@ class IssueSpider(CrawlSpider):
 #			deny=('jvi.asm.org/content/.*[+=&?#]', 'jvi.asm.org/content/.*full$', 'jvi.asm.org/content/.*figures-only$', 'jvi.asm.org/content/.*abstract'))),
 #
         Rule(LinkExtractor(allow=(
-                #'.*jvi.asm.org/content/by/year/201[2-7]$', #92
-                '.*aem.asm.org/content/by/year/201[2-7]$', #92
-                '.*jb.asm.org/content/by/year/201[2-7]$', #92
-                '.*mmbr.asm.org/content/by/year/201[2-7]$', #92
-                '.*mcb.asm.org/content/by/year/201[2-7]$' #92
+                '.*jvi.asm.org/content/by/year/201[7-8]$', #92
+                '.*aem.asm.org/content/by/year/201[7-8]$', #92
+                '.*jb.asm.org/content/by/year/201[7-8]$', #92
+                '.*mmbr.asm.org/content/by/year/201[7-8]$', #92
+                '.*mcb.asm.org/content/by/year/201[7-8]$' #92
             ))),
 
         Rule(LinkExtractor(allow=(
@@ -91,18 +94,9 @@ class IssueSpider(CrawlSpider):
                 '.*journal/10.1002/\(ISSN\)1522\-239Xb/issues\?activeYear=201[2-7]$' #92
             ))),
 
-        Rule(LinkExtractor(allow=(
-                '.*/loi/kcll20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kbac20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kidp20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/tjar20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kinv20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kpsb20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kjks20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kmge20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kbim20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-                '.*/loi/kwrm20\?open=\d+&year=201[2-7]&repitition=\d+.*', #102
-            ))),
+        #Rule(LinkExtractor(allow=(
+        #        '/loi/\w+\?open=\d+&year=\d+&repitition=\d+.*', #102
+        #    ))),
     )
 
     def extract_with_css(self, root, query):
@@ -221,9 +215,27 @@ class IssueSpider(CrawlSpider):
                     "pdf_name" : doi.replace("/", "_")
                 }
 
-    def parse_journal_100(self, response):
+    def parse_journal_tandfonline(self, response):
+      year_links = response.xpath("//li[@class='vol_li ']/a/@href").extract()
+      for link in year_links:
+        year = int(Utils.regex_extract(link, "year=(\d+)&repitition"))
+        if year >= 2005:
+          volume_url = urlparse.urljoin(response.url, link)
+          yield response.follow(volume_url, parse_tandfonline_volumn)
+
+    def parse_tandfonline_volumn(self, response):
+      issue_urls = response.xpath("//li[@class='vol_li active']/ul/li/@href").extract()
+      for url in issue_urls:
+        yield response.follow(url, parse_journal_tandfonline_issue)
+      
+    def parse_journal_tandfonline_issue(self, response):
         self.logger.info("Get an journal page for journal 100: %s", response.url)
         fields = response.url.split('/')
+        yield {
+            'url' : response.url,
+        }
+        return
+        
         size = len(fields)
 
         # url must be like http://www.tandfonline.com/toc/kcll20/{volume_id}/{issue_id}
@@ -245,7 +257,7 @@ class IssueSpider(CrawlSpider):
             yield {
                 'journal' : journal,
                 'title' : title,
-                'date' : date,
+                'release_date' : date,
                 'volume' : volume,
                 'issue' : issue,
                 'page' : page,
@@ -260,7 +272,6 @@ class IssueSpider(CrawlSpider):
 
 
     def parse_wageningena(self, response):
-        print "process url: %s" % response.url
         if response.url == "http://www.wageningenacademic.com/toc/qas/0/0":
             #this is in-press title
             return
@@ -280,6 +291,7 @@ class IssueSpider(CrawlSpider):
             pdf_name = doi.replace("/", "_")
             keywords = ",".join(section.xpath(".//div[@class='tocListKeywords']/a/text()").extract())
             pdf_link = self.extract_with_xpath(section, ".//a[@class='ref nowrap pdf']/@href")
+            pdf_link = urlparse.urljoin(response.url, pdf_link)
             yield {
                 'journal': journal,
                 'title': title,
@@ -321,6 +333,7 @@ class IssueSpider(CrawlSpider):
                     end_page = ""
 
                 pdf_link = cit.xpath(".//a[@rel='full-text.pdf']/@href").extract_first()
+                pdf_link = urlparse.urljoin(response.url, pdf_link)
                 doi = cit_metadata.xpath(".//span[@class='cit-doi']/text()").extract_first().strip()
                 pdf_name = doi.replace("/", "_")
 

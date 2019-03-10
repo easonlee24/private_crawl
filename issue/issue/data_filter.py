@@ -4,7 +4,7 @@ import json
 
 start_date = "2005"
 #data_key = "date"
-date_key = "Year of publication:"
+date_key = "release_year"
 for line in sys.stdin:
     json_data = json.loads(line)
     #date may have multiple data formats:

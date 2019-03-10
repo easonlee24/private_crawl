@@ -17,9 +17,12 @@ class MergeMeta(object):
                 try:
                     line = line.strip()
                     json_data = json.loads(line)
+                    url = json_data['url']
                 except Exception as e:
-                    continue
-                url = json_data['article_url']
+                    if 'access_url' in json_data:
+                        url = json_data['access_url']
+                    else:
+                        url = json_data['url']
                 sup_meta_dict[url] = json_data
 
         with open(self.origin_meta_file) as f:
@@ -44,7 +47,7 @@ class MergeMeta(object):
                     if type(sup_data[key]) is list:
                         if len(sup_data[key]) == 0:
                             continue
-                    elif sup_data[key].strip() == "":
+                    elif sup_data[key] is None or  sup_data[key].strip() == "":
                         continue
                         
                     if key == 'author_sup_texts':
@@ -56,9 +59,15 @@ class MergeMeta(object):
                             miss_count = miss_count + 1
                             continue
                         json_data['publish_date'] = publish_date
+                    elif key == "author_affilation":
+                        json_data["author_affiliation"] = sup_data[key]
+                    elif key == "author":
+                        json_data["author"] = sup_data[key]
                     elif key != 'url':
-                        if key not in json_data or json_data[key] == "" or (type(json_data[key]) is list and json_data[key][0] is None):
-                            json_data[key] = sup_data[key]
+                        json_data[key] = sup_data[key]
+                        #if key not in json_data or json_data[key] == "" or (type(json_data[key]) is list and json_data[key][0] is None):
+                        #    json_data[key] = sup_data[key]
+                
                 print json.dumps(json_data)
 
     def convert_publish_date(self, origin_publish_date):

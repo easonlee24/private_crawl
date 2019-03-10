@@ -7,6 +7,7 @@ import xlrd
 import datetime
 import re
 import urlparse
+from unidecode import unidecode
 from xml.dom import minidom
 from mysql_helper import MySQLHelper
 reload(sys)
@@ -15,14 +16,16 @@ sys.setdefaultencoding('utf8')
 class Json2Xml:
     """Convert metadata result crawled by scrapy to xml
     """
-    def __init__(self, all_journal_meta_xls, json_file, save_file, table_suffix = None):
+    def __init__(self, all_journal_meta_xls, json_file, save_file, table_suffix = None, use_new_journal = None, checked_table = None):
         self.json_file = json_file
         self.save_file = save_file
-        self.today = time.strftime('%Y%m%d', time.localtime(time.time()))
-        self.now = time.strftime('%Y-%m-%dT00:00:00',time.localtime(time.time()))
+        self.today = "20180820"#time.strftime('%Y%m%d', time.localtime(time.time() - 24*3600))
+        self.now = time.strftime('%Y-%m-%dT00:00:00',time.localtime(time.time() - 24 * 3600))
         if table_suffix is None:
             table_suffix = self.today
         self.table_suffix = table_suffix
+        self.use_new_journal = use_new_journal
+        self.checked_table = checked_table
 
         self.all_journal_meta = {}
         #以防某些元数据爬取不到journal name，从excel里面获取journal url与journal name的对应关系
@@ -32,7 +35,7 @@ class Json2Xml:
         self.next_article_id= 1
         self.current_url = ""
         self.journal_name_map = {
-            "C" : "c journal of carbon research",
+            "C" : "C Journal of Carbon Research",
             "IJERPH" : "International Journal of Environmental Research and Public Health",
             "IJFS" : "International Journal of Financial Studies",
             "IJGI" : "ISPRS International Journal of Geo-Information",
@@ -48,10 +51,98 @@ class Json2Xml:
             "JRFM" : "Journal of Risk and Financial Management",
             "JSAN" : "Journal of Sensor and Actuator Networks",
             "INTEGR MED INT" : "Integrative Medicine International",
-            "ASWAN HEART CENTRE SCIENCE & PRACTICE SERIES" : "Aswan Heart Centre Science and Practice Series"
+            "ASWAN HEART CENTRE SCIENCE & PRACTICE SERIES" : "Aswan Heart Centre Science and Practice Series",
+            "Audiol Neurotol Extra" : "Audiology and Neurotology Extra",
+            "Case Rep Dermatol" : "Case Reports in Dermatology",
+            "Case Rep Gastroenterol" : "Case Reports in Gastroenterology",
+            "Case Rep Neurol" : "Case Reports in Neurology",
+            "Case Rep Oncol" : "Case Reports in Oncology",
+            "Case Rep Ophthalmol" : "Case Reports in Ophthalmology",
+            "Cerebrovasc Dis Extra" : "Cerebrovascular Diseases Extra",
+            "Dement Geriatr Cogn Disord Extra" : "Dementia and Geriatric Cognitive Disorders Extra",
+            "Med Epigenet" : "Medical Epigenetics",
+            "Transactions of the London Mathematical Society" : "Transactions London Mathematical Society",
+            "Progress of Theoretical and Experimental Physics" : "Prog. Theor. Exp. Phys.",
+            "International Journal of Low-Carbon Technologies" : "Intl Jnl of Low-Carbon Technologies",
+            "biology open" : "Biology Open",
+            "Koedoe" : "Koedoe - African Protected Area Conservation and Science",
+            "In die Skriflig/In Luce Verbi" : "In die Skriflig",
+            "South African Journal of Radiology" : "SA Journal of Radiology",
+            "The African Journal of Primary Health & Family Medicine" : "African Journal of Primary Health Care & Family Medicine",
+            "REDIMAT" : "Journal of Research in Mathematics Education",
+            "RISE - International Journal of Sociology of Education" : "International Journal of Sociology of Education",
+            "RIMCIS - International and Multidisciplinary Journal of Social Sciences" : "International and Multidisciplinary Journal of Social Sciences",
+            "C&SC - Comunication & Social Change" : "Communication & Social Change",
+            "REMIE - Multidisciplinary Journal of Educational Research" : "Multidisciplinary Journal of Educational Research",
+            "DEMESCI International Journal of Deliberative Mechanisms in Science" : "The Journal of Deliberative Mechanisms in Science",
+            "GÃ©neros - Multidisciplinary Journal of Gender Studies" : "Multidisciplinary Journal of Gender Studies",
+            "HSE - Social and Education History" : "Social and Education History",
+            "International Journal of Educational Psychology - IJEP" : "International Journal of Educational Psychology",
+            "RASP - Research on Ageing and Social Policy" : "Research on Ageing and Social Policy",
+            "MSC - Masculinities and social change" : "Masculinities & Social Change",
+            "Resumen" : "Social and Education History",
+            "Biotechnology & Biotechnological Equipment" : "Biotechnology and Biotechnological Equipment",
+            "Ciencia y Tecnologia Alimentaria" : "CyTA - Journal of Food",
+            u"Revista mexicana de fitopatologÃ­a" : "Revista Mexicana de Fitopatologia",
+            u"Pesquisa AgropecuÃ¡ria Brasileira" : "Pesquisa Agropecuaria Brasileira",
+            #u"Arquivo Brasileiro de Medicina VeterinÃ¡ria e Zootecnia" : "Arquivo Brasileiro de Medicina Veterinaria e Zootecnia",
+            "GCB Bioenergy" : "Global Change Biology Bioenergy",
+            "Energy Technology & Policy": "Energy and Policy Research",
+            u"RodriguÃ©sia": "Rodriguésia",
+            u"Ambiente ConstruÃ­do": "Ambiente Construído",
+            u"Einstein (SÃ£o Paulo)": "Einstein (São Paulo)",
+            u"Revista GaÃºcha de Enfermagem": "Revista Gaúcha de Enfermagem",
+            u"RodriguÃ©sia": "Rodriguésia",
+            u"SequÃªncia (FlorianÃ³polis)": "Sequência (Florianópolis)",
+            u"Pesquisa AgropecuÃ¡ria Tropical": "Pesquisa Agropecuária Brasileira",
+            u'arquivo brasileiro de medicina veterinaria e zootecnia': "Revista Brasileira de Zootecnia",
+            'Arquivo Brasileiro de Medicina VeterinÃ¡ria e Zootecnia': "Revista Brasileira de Zootecnia",
+            'IJNS': "International Journal of Neonatal Screening",
+            'J. Imaging': "Journal of Imaging",
+            'ncRNA': 'Non-Coding RNA',
+            'JoF': 'Journal of Fungi',
+            u'Anais da Academia Brasileira de CiÃªncias': 'Anais da Academia Brasileira de Ciencias',
+            u'ABCD. Arquivos Brasileiros de Cirurgia Digestiva (SAPSo Paulo)': 'ABCD. Arquivos Brasileiros de Cirurgia Digestiva (So Paulo)',
+            u'Acta OrtopA(c)dica Brasileira': "Acta Ortopédica Brasileira",
+            u'Anais da Academia Brasileira de CiAancias': "Anais da Academia Brasileira de Ciencias",
+            u"Archives of Clinical Psychiatry (SAPSo Paulo)": "Archives of Clinical Psychiatry (So Paulo)",
+            u"PapA(c)is Avulsos de Zoologia": "Papeis Avulsos de Zoologia (Sao Paulo)",
+            u"Food Science and Technology": "Food Science and Technology (Campinas)",
+            u"Papeis Avulsos de Zoologia": "Papeis Avulsos de Zoologia (Sao Paulo)",
+            u"REAd. Revista Eletronica de Administracao (Porto Alegre)": "REAd. Revista Eletrnica de Administrao (Porto Alegre)",
+            u"Revista Brasileira de Estudos de Populacao": "Revista Brasileira de Estudos de Populao",
+            u"Revista de Administracao (Sao Paulo)": "Revista de Administrao (So Paulo)",
+            u"Revista de Economia Contemporanea": "Revista de Economia Contempornea",
+            u"Revista de Nutricao": "Revista de Nutrio",
+            u"Revista do Instituto de Medicina Tropical de Sao Paulo": "Revista do Instituto de Medicina Tropical de So Paulo",
+            u"Brazilian Journal of Nephrology": "Jornal Brasileiro de Nefrologia",
+            u"Brazilian Journal of Political Economy": "Revista de Economia Politica",
+            u"Brazilian Journal of Poultry Science": "Revista Brasileira de Ciencia Avicola",
+            u"Einstein (Sao Paulo)": "Einstein (So Paulo)",
+            u"Servico Social & Sociedade": "Servio Social & Sociedade",
+            u"TEMA (Sao Carlos)": "TEMA (So Carlos)",
+            "B": "Biotechnology and Biotechnological Equipment",
+            "J": "Journal of Applied Animal Research",
+            "G": "Geomatics, Natural Hazards and Risk",
+            "C": "CyTA - Journal of Food",
+            "E": "European Journal of Entomology",
+            u"c journal of carbon research": "C – Journal of Carbon Research",
+            "A": "ASN Neuro",
+            "V": "Virology: Research and Treatment",
+            "CompCytogen": "Comparative Cytogenetics",
+            "Comparative Cyrogenetics": "Comparative Cytogenetics",
+            "Radiographer": "Journal of Medical Radiation Sciences"
         }
 
+        for k,v in self.journal_name_map.items():
+            self.journal_name_map[k.upper()] = v
+
         self._init_db()
+
+        self.checked_urls = []
+        if self.checked_table:
+            print "load checked_table"
+            self.checked_urls = self._load_checked_urls()
 
     def __del__(self):
         self.mysql_helper.close()
@@ -102,25 +193,36 @@ class Json2Xml:
                                 "create_time datetime NOT NULL,"\
                                 "finished tinyint(1) NOT NULL DEFAULT 0,"\
                                 "extra varchar(50) comment 'extra info',"\
+                                "start_page varchar(10),"\
+                                "end_page varchar(10),"\
+                                "total_page_number varchar(10),"\
                                 "PRIMARY KEY(work_id)) DEFAULT CHARSET=utf8;" % self.article_table
             self.mysql_helper.execute(create_table_sql)
 
             author_create_table_sql = "create table if not exists %s("\
                                       "work_id varchar(50) NOT NULL,"\
                                       "author_name varchar(200) NOT NULL,"\
-                                      "institution_name varchar(500),"\
-                                      "PRIMARY KEY(work_id, author_name, institution_name)) DEFAULT CHARSET=utf8;" % self.author_table
+                                      "institution_name varchar(1000)"\
+                                      ") DEFAULT CHARSET=utf8;" % self.author_table
+                                      #"PRIMARY KEY(work_id, author_name, institution_name)) DEFAULT CHARSET=utf8;" % self.author_table
             self.mysql_helper.execute(author_create_table_sql)
 
+    def _load_checked_urls(self):
+        sql = "select access_url from `%s`" % self.checked_table
+        return [elem["access_url"] for elem in self.mysql_helper.query_all(sql)]
 
     def convert(self):
+        #print self.all_journal_meta["polymers"]
+        #sys.exit(0)
         output_meta_file_path = "%s/output_meta.jl" % self.save_file
         author_meta_file_path = "%s/author_meta.txt" % self.save_file
 
-        self.output_meta_file = open(output_meta_file_path, 'w')
-        self.author_meta_file = open(author_meta_file_path, 'w')
+        self.output_meta_file = open(output_meta_file_path, 'w+')
+        self.author_meta_file = open(author_meta_file_path, 'w+')
 
         meta_format_error = 0 
+        checked_url_num = 0
+        print self.checked_urls
         with open(self.json_file) as fp:
             for line in fp:
                 try:
@@ -128,12 +230,18 @@ class Json2Xml:
                 except Exception as e:
                     meta_format_error = meta_format_error + 1
                     continue
-                    
+
+                if self.checked_table and not article_info["access_url"] in self.checked_urls:
+                    continue
+                
+                checked_url_num = checked_url_num + 1
                 self.convert_to_xml(article_info)
 
         self.output_meta_file.close()
         self.author_meta_file.close()
         print "meta_format_error :%d" % meta_format_error
+        if self.checked_table:
+            print "checked num: %d" % checked_url_num
 
     def convert_from_database(self):
         #sql = "select collection_title from article_info where collection_title like '%cadernos de sa%' limit 1"
@@ -142,9 +250,9 @@ class Json2Xml:
         #    collection_title = collection_title['collection_title'].encode("utf-8")
         #    print collection_title
         #sys.exit(0)
-
-        article_info_table = "wiley_20180110"
-        author_sql = "select * from article_author where work_id in (select work_id from %s)" % article_info_table
+        #article_info_table = "article_info-update"
+        article_info_table = "article_info_check"
+        author_sql = "select * from article_author"
         authors = self.mysql_helper.query_all(author_sql)
         self.author_map = {}
 
@@ -156,32 +264,35 @@ class Json2Xml:
             else:
                 self.author_map[work_id].append(author)
 
-        sql = "select * from %s" % article_info_table
+        sql = "select * from `%s`" % article_info_table
         articles = self.mysql_helper.query_all(sql)
         for article_info in articles:
             self.convert_to_xml_from_database(article_info)
 
     def convert_to_xml_from_database(self, article_info):
-        source_name_str = "Wiley"
+        source_name_str = self.get_article_field(article_info, "source_name")
+
+        journal_name = self.get_article_field(article_info, "collection_title").encode("utf-8")
+        journal_meta = self.all_journal_meta[journal_name.lower()]
         url = self.get_article_field(article_info, "access_url")
         self.url = url
         self.current_url = url
-        #print "process %s" % url
+        print "process %s" % url
         volume = self.get_article_field(article_info, "volume").replace("vol.", "").strip()
         issue = self.get_article_field(article_info, "issue").replace("no.", "")
 
-        journal_name = self.get_article_field(article_info, "collection_title").lower().encode("utf-8")
-        available_time_text = 'Before-Publication-OA'
         doi = self.get_article_field(article_info, "doi")
         title = self.get_article_field(article_info, "work_title")
         abstract = self.get_article_field(article_info, "abstract")
+        if abstract == "":
+            abstract = "cannot no abstract right now, maybe has no abstract or it's too hard to get"
         xlink = self.get_article_field(article_info, "license_url")
         license_text = self.get_article_field(article_info, "license_text")
         copyright_text = self.get_article_field(article_info, "copyright") 
         publish_date  = self.get_article_field(article_info, "publish_date")
 
         #publish_date比如是2017-12-18这种格式,如果缺少『日』,那么就默认为1
-        publish_date_elems = publish_date.split('-')
+        publish_date_elems = publish_date.replace(" 00:00:00", "").split('-')
         #print "publish_date: %s" % publish_date
         if len(publish_date_elems) == 1:
             pass
@@ -193,17 +304,25 @@ class Json2Xml:
         else:
             raise Exception("unexcept publish date format :%s, %s" % (publish_date, self.url))
 
-        pdf_link = self.get_article_field(article_info, "pdf_access_url")
+        pdf_link = self.get_article_field(article_info, "pdf_access_url|pdf_link")
         keywords = self.get_article_field(article_info, "keywords")
 
-        issue_dir = self.get_article_field(article_info, "xml_uri")
-        issue_dir = os.path.dirname(issue_dir)
+        article_id = self.get_article_field(article_info, "work_id")
+        collection_id = journal_meta['collection_id']
+        if collection_id == "JO201808090000043NK":
+            date = "20170523"
+            issue_dir = "%s/%s^Y%s^V%s^N%s" % (self.save_file, journal_meta['collection_id'], date, volume, issue)
+            issue_dir = issue_dir.replace(";", "_")
+            xml_file_path = "%s/%s.xml" % (issue_dir, article_id)
+        else:
+            issue_dir = self.get_article_field(article_info, "xml_uri")
+            issue_dir = os.path.dirname(issue_dir).replace(":", "_")
+            xml_file_path = self.get_article_field(article_info, "xml_uri")
+
         if not os.path.exists(issue_dir):
             os.makedirs(issue_dir)
 
-        article_id = self.get_article_field(article_info, "work_id")
         pdf_name = self.get_article_field(article_info, "ro_title")
-        xml_file_path = self.get_article_field(article_info, "xml_uri")
         pdf_file_path = self.get_article_field(article_info, "pdf_uri")
         create_time_text = self.get_article_field(article_info, "create_time")
 
@@ -299,20 +418,20 @@ class Json2Xml:
         work_meta.appendChild(contributer_group)
         index = 0
 
+        has_author = True
         if article_id not in self.author_map:
-            print "cannot find author info for work_id :%s, url :%s" % (article_id, url)
-            return
-            raise Exception("cannot find author info for work_id :%s" % work_id)
+            has_author = False
 
         author_infos = {}
-        for author in self.author_map[article_id]:
-            author_name = author['author_name']
-            institution_name = author['institution_name']
+        if has_author:
+            for author in self.author_map[article_id]:
+                author_name = author['author_name']
+                institution_name = author['institution_name']
             
-            if author_name not in author_infos:
-                author_infos[author_name] = [institution_name]
-            else:
-                author_infos[author_name].append(institution_name)
+                if author_name not in author_infos:
+                    author_infos[author_name] = [institution_name]
+                else:
+                    author_infos[author_name].append(institution_name)
 
         for author, institutions in author_infos.items():
             contributer_meta = doc.createElement("nstl_ors:contributer_meta")
@@ -350,20 +469,25 @@ class Json2Xml:
         work_meta.appendChild(abstract_node)
         abstract_node.appendChild(doc.createCDATASection(abstract)) 
 
-        #TODO页码
-        #total_page_number = doc.createElement("nstl_ors:total_page_number")
-        #work_meta.appendChild(total_page_number)
-        #total_page_number.appendChild(doc.createTextNode("1"))
-        #start_page = doc.createElement("nstl_ors:start_page")
-        #work_meta.appendChild(start_page)
-        #start_page.appendChild(doc.createTextNode("1"))
-        #end_page = doc.createElement("nstl_ors:end_page")
-        #work_meta.appendChild(end_page)
-        #end_page.appendChild(doc.createTextNode("1"))
-
         country = doc.createElement("nstl_ors:country")
         work_meta.appendChild(country)
         country.appendChild(doc.createTextNode(country_text))
+
+        #TODO页码
+        start_page = self.get_article_field(article_info, "start_page");
+        end_page = self.get_article_field(article_info, "end_page");
+        total_page_number = self.get_article_field(article_info, 'total_page_number');
+        if start_page != "" and end_page != "":
+            # 有页码才显示页码
+            total_page_number_elem = doc.createElement("nstl_ors:total_page_number")
+            work_meta.appendChild(total_page_number_elem)
+            total_page_number_elem.appendChild(doc.createTextNode(total_page_number))
+            start_page_elem = doc.createElement("nstl_ors:start_page")
+            work_meta.appendChild(start_page_elem)
+            start_page_elem.appendChild(doc.createTextNode(start_page))
+            end_page_elem = doc.createElement("nstl_ors:end_page")
+            work_meta.appendChild(end_page_elem)
+            end_page_elem.appendChild(doc.createTextNode(end_page))
 
         publication_year = doc.createElement("nstl_ors:publication_year")
         work_meta.appendChild(publication_year)
@@ -386,6 +510,11 @@ class Json2Xml:
         self_url.setAttribute("content-type", "XML")
         self_url.setAttribute("xlink:href", xml_file_path)
 
+        self_url1 = doc.createElement("nstl_ors:self-uri")
+        work_meta.appendChild(self_url1)
+        self_url1.setAttribute("content-type", "PDF")
+        self_url1.setAttribute("xlink:href", self.get_article_field(article_info, 'pdf_access_url|pdf_link'));
+
         access_group = doc.createElement("nstl_ors:access_group")
         work_meta.appendChild(access_group)
 
@@ -397,7 +526,7 @@ class Json2Xml:
         permissions_meta = doc.createElement("nstl_ors:permissions_meta")
         access_meta.appendChild(permissions_meta)
         copyright_statement = doc.createElement("nstl_ors:copyright-statement")
-        if copyright_text != "":
+        if copyright_text == "":
             copyright_text = "no copyright"
         permissions_meta.appendChild(copyright_statement)
         copyright_statement.appendChild(doc.createCDATASection(copyright_text))
@@ -410,7 +539,7 @@ class Json2Xml:
         available_time = doc.createElement("nstl_ors:available_time")
         #TODO
         #permissions_meta.appendChild(available_time)
-        available_time.appendChild(doc.createTextNode(available_time_text))
+        available_time.appendChild(doc.createTextNode(journal_meta['available_time']))
         oa_type = doc.createElement("nstl_ors:OA-type")
         #permissions_meta.appendChild(oa_type)
         #TODO
@@ -468,35 +597,49 @@ class Json2Xml:
         url = self.get_article_field(article_info, "access_url")
         self.url = url
 
-        journal_name = self.get_article_field(article_info, "journal", throw_exception = False)
+        if "journal" in article_info:
+            journal_name = article_info["journal"]
+        else:
+            journal_name = article_info["collection"]
+
+        if type(journal_name) is list:
+            journal_name = journal_name[0]
+        journal_name = journal_name.replace("Subscribe to our newsletter", "").replace("GÃ©neros - ", "")\
+            .replace("welcomes submissions that encourage scholarly exchange between family medicine and primary health care researchers and practitioners across Africa and the developing world, whilst providing a context", "").strip()
+        journal_name = unidecode(journal_name)
         journal_not_found = False
         if journal_name != "":
           if (journal_name.lower() not in self.all_journal_meta):
               if journal_name.upper() in self.journal_name_map:
                   converted_journal_name = self.journal_name_map[journal_name.upper()]
                   if converted_journal_name.lower() not in self.all_journal_meta:
-                      print "cannot find meta info for converted_journal_name journal: %s" % converted_journal_name.lower()
+                      print "cannot find meta info for converted_journal_name journal: %s, origin journal: %s" \
+                        % (converted_journal_name.lower(), journal_name.upper())
+                      #print self.all_journal_meta
+                      #sys.exit(0)
                       journal_not_found = True
                   else:
                       journal_name = converted_journal_name
               else:
-                  #print "cannot find meta info for journal: %s" % (journal_name.encode('utf-8').upper())
+                  print "journal not in converted journal name map :%s" % (journal_name)
                   journal_not_found = True
         else:
           journal_not_found = True
 
-        if journal_not_found:
-          #元数据里面没有journal_name，或者元数据里的journal name和excel不一致
+        if journal_name == "" and journal_not_found:
+          #元数据里面没有journal_name，并且journal name和excel不一致
           #那么从excel表里面获取
+          self.use_new_journal = use_new_journal
           domain_url = self._get_domain_url(url)
           if domain_url in self.journal_url_to_name:
             journal_name = self.journal_url_to_name[domain_url]
           else:
-            raise Exception("can not get journal from either meta info or xls, domain:%s" % domain_url)
+            print "can not get journal from either meta info or xls, domain:%s, url: %s" % (domain_url, url)
+            #raise Exception("can not get journal from either meta info or xls, domain:%s, url: %s" % (domain_url, url))
           
         #过滤太老的article
         try:
-            date = self.get_article_field(article_info, "publish_year")
+            date = self.get_article_field(article_info, "release_year", throw_exception = False).replace(")", "")
         except Exception  as e:
             print "date is empty: %s" % self.url
             return
@@ -505,14 +648,18 @@ class Json2Xml:
             print "date is empty: %s" % url
             return
 
-        if (int(date) < 2015):
+        min_date = 2005
+        if self.use_new_journal:
+            min_date = 2005
+
+        if (int(date) < min_date):
             print "too old issue: %s" % date
             return
             
         if journal_not_found:
             #raise Exception("cannot find meta info for journal: %s" % journal_name)
             #print "cannot find meta info for journal: %s,%s" % (journal_name, url)
-            print "cannot find meta info for journal: %s" % (journal_name.encode('utf-8'))
+            print "cannot find meta info for journal: %s, url :%s" % (journal_name.encode('utf-8'), url)
             return
             
         journal_meta = self.all_journal_meta[journal_name.lower()]
@@ -521,17 +668,18 @@ class Json2Xml:
 
         volume = self.get_article_field(article_info, "volume").replace("vol.", "").strip()
         issue = self.get_article_field(article_info, "issue").replace("no.", "")
-        #legex_issue = re.compile(r"[\d-]+") //issue也可以不是数字
-        if volume == "" or issue == "": #or not legex_issue.match(issue): 
-            print "invalid volume and issue(%s, %s): %s" % (volume, issue, self.url)
-            return
+        #legex_issue = re.compile(r"[\d-]+") //issue也可以不是数字,issue也可以是空
+        #if volume == "": #or not legex_issue.match(issue): 
+        #    print "invalid volume and issue(%s, %s): %s" % (volume, issue, self.url)
+        #    return
         doi = self.get_article_field(article_info, "doi", throw_exception = False) #doi为空..
+        doi = doi.replace("http://dx.doi.org/", "")
         title = self.get_article_field(article_info, "title")
         abstract = self.get_article_field(article_info, "abstract", throw_exception = False).replace("View Full-Text", "").strip()
         if abstract == "":
+            abstract = "cannot no abstract right now, maybe has no abstract or it's too hard to get"
             #print "abstract is empty: %s" % self.url
             #return
-            pass
 
         xlink = self.get_article_field(article_info, "xlink", throw_exception = False)
         if xlink == "":
@@ -543,7 +691,12 @@ class Json2Xml:
         self.current_url = url
 
         #Anthor journal publish date may not like "18 August 2017"
-        publish_date  = self.get_article_field(article_info, "publish_date")
+        publish_date  = self.get_article_field(article_info, "release_date", throw_exception = False)
+        if publish_date == "":
+            if "release_year" in article_info:
+                publish_date = "%s-01-01" % article_info["release_year"]
+            else:
+                raise Exception("cannot get release_date from article_info")
         #try:
         #    publish_date = datetime.datetime.strptime(publish_date, "%d %B %Y").strftime("%Y-%m-%d")
         #except Exception as e:
@@ -553,9 +706,8 @@ class Json2Xml:
             
             
 
-        try:
-            pdf_link = self.get_article_field(article_info, "pdf_link")
-        except Exception as e:
+        pdf_link = self.get_article_field(article_info, "pdf_link|pdf_url", throw_exception = False)
+        if pdf_link == "":
             print "cannot find pdf_link: %s" % self.url
             return
 
@@ -565,9 +717,13 @@ class Json2Xml:
             keywords = []
 
         try:
-            authors = self.get_article_field(article_info, "author", False)
+            authors = self.get_article_field(article_info, "author", False, throw_exception = False)
+            if authors == "":
+                authors = []
             try:
               author_affiliation = self.get_article_field(article_info, "author_affiliation", False)
+              if len(author_affiliation) == 0:
+                author_affiliation = ["unkonwn"] * len(authors) #可能没有作者机构
             except Exception as e:
               author_affiliation = ["unkonwn"] * len(authors) #可能没有作者机构
 
@@ -589,12 +745,16 @@ class Json2Xml:
                             % (self.url, len(authors), len(author_affiliation)))
                         return
             if len(authors) != len(author_sup):
-                print "authors and authos_sup len not equal, This not gonna happen: %s" % url
-                return
+                #20180909: authors和author_sup长度不一致时，截断其中一个。懒得重爬了。
+                if len(authors) > len(author_sup):
+                    authors = authors[:len(author_sup) - 1]
+                else:
+                    author_sup = author_sup[:len(authors) - 1]
+                #print "authors and authos_sup len not equal, This not gonna happen: %s" % url
             
-            if len(author_sup) < 1:
-                print "no author, not gonna happen :%s" % url
-                return
+            #if len(author_sup) < 1:
+            #    print "no author, not gonna happen :%s" % url
+            #    return
 
         except Exception as e:
             print "author_affiliation fail :%s, reson %s" % (self.url, e.message)
@@ -612,6 +772,7 @@ class Json2Xml:
 
         #1. create issue dir
         issue_dir = "%s/%s^Y%s^V%s^N%s" % (self.save_file, journal_meta['collection_id'], date, volume, issue)
+        issue_dir = issue_dir.replace(";", "_")
         if not os.path.exists(issue_dir):
             os.makedirs(issue_dir)
 
@@ -676,6 +837,9 @@ class Json2Xml:
         source_meta.appendChild(source_id)
         #TODO JOURNAL的Source ID需要拿到
         source_id.appendChild(doc.createTextNode(journal_meta['source_id']))
+        if (journal_meta['source_id'].strip() == ''):
+            raise Exception("source id is empty: %s" % journal_name);
+            
         source_name = doc.createElement("nstl_ors:source_name")
         source_meta.appendChild(source_name)
         source_name.appendChild(doc.createCDATASection(source_name_str))
@@ -719,7 +883,7 @@ class Json2Xml:
                 institution_meta.appendChild(institution_name)
                 try:
                     institution_name.appendChild(doc.createCDATASection(author_affiliation[int(aff_index)-1]))
-                except:
+                except Exception as e:
                     print "catch exception when add authori %s" % url
                     #print article_info
                     #raise Exception("catch exception when add author")
@@ -773,19 +937,26 @@ class Json2Xml:
         work_meta.appendChild(abstract_node)
         abstract_node.appendChild(doc.createCDATASection(abstract)) 
 
-        #TODO页码
-        #total_page_number = doc.createElement("nstl_ors:total_page_number")
-        #work_meta.appendChild(total_page_number)
-        #total_page_number.appendChild(doc.createTextNode("1"))
-        #start_page = doc.createElement("nstl_ors:start_page")
-        #work_meta.appendChild(start_page)
-        #start_page.appendChild(doc.createTextNode("1"))
-        #end_page = doc.createElement("nstl_ors:end_page")
-        #work_meta.appendChild(end_page)
-
         country = doc.createElement("nstl_ors:country")
         work_meta.appendChild(country)
         country.appendChild(doc.createTextNode(journal_meta['country']))
+
+        #TODO页码
+        end_page = self.get_article_field(article_info, "lpage");
+        start_page = self.get_article_field(article_info, "fpage");
+        total_page_number = '';
+        if start_page != "" and end_page != "":
+            # 有页码才显示页码
+            total_page_number = str(int(end_page) - int(start_page) + 1);
+            total_page_number_elem = doc.createElement("nstl_ors:total_page_number")
+            work_meta.appendChild(total_page_number_elem)
+            total_page_number_elem.appendChild(doc.createTextNode(total_page_number))
+            start_page_elem = doc.createElement("nstl_ors:start_page")
+            work_meta.appendChild(start_page_elem)
+            start_page_elem.appendChild(doc.createTextNode(start_page))
+            end_page_elem = doc.createElement("nstl_ors:end_page")
+            work_meta.appendChild(end_page_elem)
+            end_page_elem.appendChild(doc.createTextNode(end_page))
 
         publication_year = doc.createElement("nstl_ors:publication_year")
         work_meta.appendChild(publication_year)
@@ -808,6 +979,11 @@ class Json2Xml:
         self_url.setAttribute("content-type", "XML")
         self_url.setAttribute("xlink:href", xml_file_path)
 
+        self_url1 = doc.createElement("nstl_ors:self-uri")
+        work_meta.appendChild(self_url1)
+        self_url1.setAttribute("content-type", "PDF")
+        self_url1.setAttribute("xlink:href", self.get_article_field(article_info, 'pdf_access_url|pdf_link'));
+
         access_group = doc.createElement("nstl_ors:access_group")
         work_meta.appendChild(access_group)
 
@@ -819,7 +995,7 @@ class Json2Xml:
         permissions_meta = doc.createElement("nstl_ors:permissions_meta")
         access_meta.appendChild(permissions_meta)
         copyright_statement = doc.createElement("nstl_ors:copyright-statement")
-        if copyright_text != "":
+        if copyright_text == "":
             copyright_text = "no copyright"
         permissions_meta.appendChild(copyright_statement)
         copyright_statement.appendChild(doc.createCDATASection(copyright_text))
@@ -898,7 +1074,7 @@ class Json2Xml:
         output_meta['eissn'] = journal_meta['eissn']
         output_meta['collection_title'] = journal_name
         output_meta['platform_url'] = journal_meta['platform_url']
-        output_meta['source_name'] = 'Molecular Diversity Preservation International'
+        output_meta['source_name'] = source_name_str
         output_meta['keywords'] = ";".join(keywords)
         output_meta['language'] = 'eng'
         output_meta['abstract'] = abstract
@@ -917,6 +1093,9 @@ class Json2Xml:
         output_meta['pdf_access_url'] = pdf_link
         output_meta['creator'] = 'NK'
         output_meta['create_time'] = self.now
+        output_meta['start_page'] = start_page
+        output_meta['end_page'] = end_page
+        output_meta['total_page_number'] = total_page_number
         self.save_article_info(output_meta)
         #self.output_meta_file.write(json.dumps(output_meta))
         #self.output_meta_file.write('\n')
@@ -933,9 +1112,12 @@ class Json2Xml:
         self.mysql_helper.insert(self.author_table, article_author_info)
 
     def _get_domain_url(self, url):
-      journal_url = urlparse.urljoin(url, '/').replace("https", "http")
-      url = urlparse.urljoin(url, '/').replace("https", "http").replace("www.", "")
-      return url
+      try:
+        journal_url = urlparse.urljoin(url, '/').replace("https", "http")
+        url = urlparse.urljoin(url, '/').replace("https", "http").replace("www.", "")
+        return url
+      except Exception:
+        return ""
 
     def load_journal_meta(self, all_journal_meta_xls):
         """
@@ -944,37 +1126,57 @@ class Json2Xml:
         data = xlrd.open_workbook(all_journal_meta_xls)
 
         #TODO 其他需求journal元数据表可能不是这样
-        table = data.sheets()[2] #3rd sheet is main sheet
+        if not self.use_new_journal:
+            table = data.sheets()[0] #3rd sheet is main sheet
+        else:
+            table = data.sheets()[0]
         nrows = table.nrows
         ncols = table.ncols
         for i in xrange(0,nrows):
-            #TODO 前两行没用，其他需求可能不适用
-            if (i <= 1):
-                continue
+            if not self.use_new_journal:
+                #TODO 第一行没用，其他需求可能不适用
+                if (i < 1):
+                    continue
 
             rowValues= table.row_values(i)
 
-            journal = rowValues[9].lower().strip()
-            if journal in self.all_journal_meta:
-               raise Exception("journal find multiple meta info: %s" % journal)
+            if not self.use_new_journal:
+                journal = unidecode(rowValues[6].lower().strip())
+                if journal in self.all_journal_meta:
+                   raise Exception("journal find multiple meta info: %s" % journal)
 
-            #print "load journal :%s" % journal.encode("utf-8")
+                print "add journal: %s" % journal
+                if journal == "":
+                    continue
+                self.all_journal_meta[journal] = {
+                'journal_id': rowValues[0],
+                'issn': rowValues[8],
+                'eissn': rowValues[9],
+                'country': rowValues[10],
+                'language': rowValues[11], 'license_type': rowValues[25], 'license_text': rowValues[26], 'oa_type': rowValues[32], 
+                'available_time': rowValues[33],
+                'platform_url': rowValues[29], 'source_name': rowValues[28], 'system_id': rowValues[4],
+                'collection_id': rowValues[1], 'source_id': rowValues[2]}
+                journal_url = self._get_domain_url(rowValues[31])
+            else:
+                #后面OA新增的期刊，excel格式不一样
+                journal = rowValues[4].lower().strip()
+                if journal == "":
+                    break;
+                if journal in self.all_journal_meta:
+                   raise Exception("journal find multiple meta info: %s" % journal)
 
-            #print "%s,%s" % (rowValues[9], rowValues[23])
+                self.all_journal_meta[journal] = {
+                'issn': rowValues[5],
+                'eissn': rowValues[6],
+                'country': rowValues[9],
+                'language': rowValues[7], 'license_type': rowValues[12], 'license_text': '', 'oa_type': rowValues[18], 
+                'available_time': rowValues[22],
+                'platform_url': rowValues[15], 'source_name': rowValues[14], 'system_id': rowValues[3],
+                'collection_id': rowValues[32], 'source_id': rowValues[33]}
+                journal_url = self._get_domain_url(rowValues[17])
 
-            self.all_journal_meta[journal] = {
-            'journal_id': rowValues[0],
-            'issn': rowValues[1],
-            'eissn': rowValues[2],
-            'country': rowValues[5],
-            'language': rowValues[6], 'license_type': rowValues[17], 'license_text': rowValues[18], 'oa_type': rowValues[19], 
-            'available_time': rowValues[20],
-            'platform_url': rowValues[27], 'source_name': rowValues[28], 'system_id': rowValues[40],
-            'collection_id': rowValues[43], 'source_id': rowValues[44]}
-            
-            journal_url = self._get_domain_url(rowValues[23])
             self.journal_url_to_name[journal_url] = journal
-
 
     def get_journal_id(self, journal_name):
         """
@@ -1031,7 +1233,16 @@ class Json2Xml:
         self.next_article_id = self.next_article_id + 1
         return article_id
 
-    def get_article_field(self, article_info, field, convert = True, throw_exception = True):
+    def get_article_field(self, article_info, field, convert = True, throw_exception = False):
+        fields = field.split("|")
+        ret = ""
+        for field in fields:
+            ret = self.get_article_field_inner(article_info, field, convert, throw_exception)
+            if ret != "":
+                break
+        return ret
+
+    def get_article_field_inner(self, article_info, field, convert = True, throw_exception = True):
         if field not in article_info:
             if throw_exception:
                 raise Exception ("field %s is empty, url is :%s" % (field, self.url))
@@ -1055,20 +1266,29 @@ class Json2Xml:
         return ret
 
 if __name__ == "__main__":
+    use_new_journal = False
     if len(sys.argv) == 4:
         journal_meta = sys.argv[1]
         input_filename = sys.argv[2]
         save_path = sys.argv[3]
         table_suffix = None
+        checked_table = None
     elif len(sys.argv) == 5:
         journal_meta = sys.argv[1]
         input_filename = sys.argv[2]
         save_path = sys.argv[3]
         table_suffix = sys.argv[4]
+        checked_table = None
+    elif len(sys.argv) == 6:
+        journal_meta = sys.argv[1]
+        input_filename = sys.argv[2]
+        save_path = sys.argv[3]
+        table_suffix = sys.argv[4]
+        checked_table = sys.argv[5]
     else:
-        print "Usage: python json2xml.py jounal_meta input_filename save_path [table_suffix]"
+        print "Usage: python json2xml.py jounal_meta input_filename save_path [table_suffix] [checked_table]"
         sys.exit(1)
         
-    json2xml = Json2Xml(journal_meta, input_filename, save_path, table_suffix = table_suffix)
+    json2xml = Json2Xml(journal_meta, input_filename, save_path, table_suffix = table_suffix, use_new_journal = use_new_journal, checked_table = checked_table)
     json2xml.convert()
     #json2xml.convert_from_database()

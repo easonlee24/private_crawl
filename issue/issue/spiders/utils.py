@@ -55,9 +55,11 @@ class Utils(object):
         found = False
         elements = response.xpath(xpath)
         for element in elements:
-            if element.xpath("text()").extract_first().strip() == selected_content:
+            elem_text = "".join(element.xpath(".//text()").extract())
+            if elem_text and elem_text.lower().find(selected_content.lower()) != -1:
                 selected_elemment = element
                 found = True
+                break
 
         if not found:
             return None
@@ -99,12 +101,26 @@ class Utils(object):
     @origin_date: date string crawled, possible format:
         1: November 1, 2017
         2: 1 November 2017
+        3: (5 October, 2017)
+        4: (November, 2017)
     @return datetime object
     """
     @staticmethod
     def strptime(origin_date):
-        origin_date = origin_date.replace(",", "")
+        print "origin_date :%s" % origin_date
+        origin_date = origin_date.replace(".", "").replace(",", "").replace("(", "").replace(")", "")
         dates = origin_date.split()
+
+        # 只有year
+        if len(dates) == 1:
+            dates = [1, 'Aug', dates[0]]
+
+        # 没有day
+        elif len(dates) == 2:
+            dates = [1, dates[0], dates[1]]
+
+        elif len(dates) == 0:
+            return ""
 
         month = dates[1]
         day = dates[0]
@@ -136,7 +152,7 @@ class Utils(object):
             month = dates[0]
             day = dates[1]
             if month not in month_dict:
-                raise Exception("month not expected: %s" % month)
+                raise Exception("month not expected: %s, date: %s" % (month, origin_date))
 
         month = month_dict[month]
         date_obj = datetime.datetime.strptime("%s-%s-%s" % (dates[2], month, day), "%Y-%m-%d")
@@ -147,16 +163,23 @@ class Utils(object):
     @origin_date: date string crawled, possible format:
         1: November 1, 2017
         2: 1 November 2017
-    @return str 2017-11-01
+        3: (5 October, 2017)
+        4: (November, 2017)
+    @return str 2017-11-00
     """
     @staticmethod
     def format_datetime(origin_date):
-        try:
-            date_obj = Utils.strptime(origin_date)
-        except Exception as e:
+        date_pattern = re.compile("\d{4}-\d{1,2}-\d{1,2}")
+        if date_pattern.match(origin_date):
             return origin_date
 
-        return date_obj.strftime("%Y-%m-%d")
+        date_obj = Utils.strptime(origin_date)
+
+        try:
+            ret = date_obj.strftime("%Y-%m-%d")
+        except Exception:
+            return ""
+        return ret
 
     @staticmethod
     def get_pdf_filename(json_data):
@@ -233,16 +256,16 @@ class Utils(object):
         return work_dir
 
     @staticmethod
-    def format_value(value, convert=True):
+    def format_value(value, convert=True, join_char = ','):
         if type(value) is list:
-            value = filter(None, value)
+            value = [i for i in value if i is not None]
             if not convert:
                 return value
 
             if len(value) == 0:
                 value = ""
             else:
-                value = ",".join(value)
+                value = join_char.join(value)
 
         if value is None:
             value = ""
@@ -305,6 +328,29 @@ class Utils(object):
         
         return Utils.format_authors(json_data, author, author_sup, author_affiliation)
         
+    @staticmethod
+    def parse_generator_str(origin_str):
+        """
+        convert string with generator pattern to list of string, only support on pattern
+        For example: www.baidu.com/page[1-3]
+        Return: [
+            www.baidu.com/page1, www.baidu.com/page2,www.baidu.com/page3
+        ]
+        """
+        pattern = re.compile("(?P<prefix>.*)\[(?P<startid>\d+)-(?P<endid>\d+)\](?P<suffix>.*)")
+        match = pattern.match(origin_str)
+        ret = []
+        if match:
+            prefix = match.group("prefix")
+            startid = match.group("startid")
+            endid = match.group("endid")
+            suffix = match.group("suffix")
+            for i in range(int(startid), int(endid) + 1):
+                ret.append("%s%s%s" % (prefix, i, suffix))
+            return ret
+
+        return [origin_str]
+            
     @staticmethod
     def _format_author_sup(author_size, author_sup, supplement = True):
         """
@@ -369,6 +415,11 @@ class Utils(object):
 
         return "".join([g for g in match.groups() or match.group() if g])
 
+    @staticmethod
+    def format_text(text):
+        ret = text.replace("\n", "")
+        return ' '.join(ret.split())
+
     def load_journal_meta(all_journal_meta_xls):
         """
         Load all journal meta info from xls file
@@ -411,5 +462,7 @@ class Utils(object):
         return all_journal_meta
 
 if __name__ == '__main__':
-    text = "Vol. 35, No. 1 (April 2010), pp. 51-71"
-    print Utils.regex_extract(text, "Vol. (\d+), No. (\d+)")
+    #text = "Vol. 35, No. 1 (April 2010), pp. 51-71"
+    #print Utils.regex_extract(text, "Vol. (\d+), No. (\d+)")
+    str = "www.baidu.com/page[1-3]"
+    print Utils.parse_generator_str(str)

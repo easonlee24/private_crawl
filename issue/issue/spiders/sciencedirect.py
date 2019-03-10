@@ -2,12 +2,14 @@
 import scrapy
 import urlparse
 from scrapy.http.request import Request
-
+from utils import  Utils
 
 class SciencedirectSpider(scrapy.Spider):
     name = 'sciencedirect'
     allowed_domains = ['http://www.sciencedirect.com/']
-    start_urls = ['http://www.sciencedirect.com/journal/procedia-engineering/vol/145/suppl/C']
+    start_urls = [
+        'https://www.sciencedirect.com/journal/procedia-engineering/vol/[170-216]/suppl/C'
+    ]
 
     def __init(self, url_file):
         self.url_file = url_file
@@ -18,7 +20,33 @@ class SciencedirectSpider(scrapy.Spider):
         #return
         with open(self.url_file, "rb") as f:
             for line in f:
-                yield Request(line.strip(), self.parse, dont_filter = True)
+                urls = Utils.parse_generator_str(line.strip())
+                for url in urls:
+                    yield Request(url, self.parse_confence, dont_filter = True)
+                #yield Request(line.strip(), self.parse, dont_filter = True)
+
+    # 会议集合, url: https://www.sciencedirect.com/journal/procedia-computer-science/vol/126/suppl/C
+    def parse_confence(self, response):
+        source = response.xpath("//*[@id='els-main-title-link']//title/text()").extract_first()
+        processding_name = response.xpath("//div[@class='summary-info-header']/h1/a/span/text()").extract_first()
+        conference_name = response.xpath("//div[@class='js-title-editors-group']/h2/text()").extract_first()
+        author = Utils.get_all_inner_texts(response, "//div[@class='u-margin-xxl-top text-s js-authors']")
+        volume = response.xpath("//span[@class='text-s js-vol-issue']/text()").extract_first().replace("Volume ", "").replace(", ", "").strip()
+        page_year = Utils.get_all_inner_texts(response, "//span[@class='js-issue-status text-s']")
+        page = Utils.regex_extract(page_year, "Pages (.*) \(\d+\)")
+        year = Utils.regex_extract(page_year, "Pages .* \((\d+)\)")
+        issn = Utils.get_all_inner_texts(response, "//div[@class='u-margin-l-ver u-clr-grey8']/h2").replace("ISSN:", "")
+        yield {
+            "Source": source,
+            "ConferenceUrl": response.url,
+            "ConferenceName": conference_name,
+            "ConferencePublisher": author,
+            "ConferenceVolume": volume,
+            "ConferencePage": page,
+            "ConferenceYear": year,
+            "proceedingName": processding_name,
+            "issn": issn
+        }
 
     def parse(self, response):
         articles = response.css(".article-list-items > .article-item")

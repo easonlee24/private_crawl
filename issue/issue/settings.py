@@ -24,15 +24,15 @@ USER_AGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.2pre) Gec
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 2
+#CONCURRENT_REQUESTS = 1
 
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 5
+DOWNLOAD_DELAY = 1
 ## The download delay setting will honor only one of:
-#CONCURRENT_REQUESTS_PER_DOMAIN = 5
-#CONCURRENT_REQUESTS_PER_IP = 1
+CONCURRENT_REQUESTS_PER_DOMAIN = 3
+CONCURRENT_REQUESTS_PER_IP = 3
 
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
@@ -115,10 +115,10 @@ PROXIES = [
 
 #取消默认的useragent,使用新的useragent
 DOWNLOADER_MIDDLEWARES = {
-        'scrapy.downloadermiddleware.useragent.UserAgentMiddleware' : None,
-        'scrapy.downloadermiddleware.redirect.RedirectMiddleware' : None,
-        'issue.rotate_useragent.RotateUserAgentMiddleware' : 500,
-        'issue.custom_redirect.CustomRedirectMiddleware' : 600,
+        #'scrapy.downloadermiddleware.useragent.UserAgentMiddleware' : None,
+        #'scrapy.downloadermiddleware.redirect.RedirectMiddleware' : None,
+        #'issue.rotate_useragent.RotateUserAgentMiddleware' : 500,
+        #'issue.custom_redirect.CustomRedirectMiddleware' : 600,
         #'scrapy.contrib.downloadermiddleware.httpproxy.HttpProxyMiddleware': 110,
         #'issue.rotate_useragent.ProxyMiddleware': 100,
 }

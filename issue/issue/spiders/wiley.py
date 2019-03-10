@@ -4,6 +4,7 @@ from scrapy.spider import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 
 import urlparse
+from ..spiders.utils import  Utils
 
 class WileySpider(CrawlSpider):
     name = 'wiley'
@@ -74,65 +75,119 @@ class WileySpider(CrawlSpider):
         #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1522-239Xb/issues' #92
 
         #以下是OA的wiley需求
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2198-3844/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1474-9726/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2328-9503/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-2680/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2157-9032/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-7634/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1349-7006/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2191-1363/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2057-4347/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-0904/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2163-8306/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-4877/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1755-263X/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-7758/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-0505/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1757-4684/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-5822/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-703X/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1752-4571/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2048-3694/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2048-7177/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-4049/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2049-6060/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-4527/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1750-2659/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2375-2920/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1007/13539.2190-6009/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1582-4934/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)2040-1124/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2058-3273/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-3909/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2056-4538/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2047-9980/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1939-1676/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1751-7915/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-8827/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2324-9269/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-1058/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1744-4292/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-2238/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2052-1707/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-817X/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2052-4412/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2056-3485/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-3380/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-1161/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1759-7714/issues',
-        'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2053-1095/issues'
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2198-3844/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1474-9726/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2328-9503/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-2680/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2157-9032/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-7634/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1349-7006/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2191-1363/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2057-4347/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-0904/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2163-8306/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-4877/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1755-263X/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-7758/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-0505/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1757-4684/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-5822/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-703X/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1752-4571/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2048-3694/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2048-7177/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-4049/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2049-6060/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-4527/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1750-2659/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2375-2920/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1007/13539.2190-6009/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1582-4934/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)2040-1124/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2058-3273/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-3909/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2056-4538/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2047-9980/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1939-1676/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1751-7915/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2045-8827/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2324-9269/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2054-1058/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1744-4292/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2055-2238/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2052-1707/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-817X/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2052-4412/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2056-3485/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2051-3380/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2050-1161/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1759-7714/issues',
+        #'http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)2053-1095/issues'
+
+        #以下是OA的新增需求
+        #'https://onlinelibrary.wiley.com/loi/14677652',
+        #'https://onlinelibrary.wiley.com/loi/17571707',
+
+        #以下是eonly的返工
+        #'http://onlinelibrary.wiley.com/journal/loi/17454557',
+        #'http://onlinelibrary.wiley.com/journal/loi/15206033',
+        #'http://onlinelibrary.wiley.com/journal/loi/21523878',
+        #'http://onlinelibrary.wiley.com/journal/loi/19385463a',
+        #'http://onlinelibrary.wiley.com/journal/loi/1526968X',
+        #'http://onlinelibrary.wiley.com/journal/loi/1522239Xb',
+        #'http://onlinelibrary.wiley.com/journal/loi/1600048X',
+        #'http://onlinelibrary.wiley.com/journal/loi/1744697X',
+        #'http://onlinelibrary.wiley.com/journal/loi/1939165X',
+        #'http://onlinelibrary.wiley.com/journal/loi/2041210X',
+        #'http://onlinelibrary.wiley.com/journal/loi/14635224',
+        #'http://onlinelibrary.wiley.com/journal/loi/14390264',
+        #'http://onlinelibrary.wiley.com/journal/loi/19372817'
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/1',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/2',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/3',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/4',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/5',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/6',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/7',
+        'https://ascpt.onlinelibrary.wiley.com/toc/21638306/2013/2/8',
+        'https://agupubs.onlinelibrary.wiley.com/toc/23335084/2016/3/7',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2010/57/1',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2010/57/2',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2010/57/3',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2011/58/1',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2011/58/2',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2011/58/3',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2011/58/4',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2012/59/1',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2012/59/2',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2012/59/3',
+        'https://onlinelibrary.wiley.com/toc/20513909a/2012/59/4',
+        'https://onlinelibrary.wiley.com/toc/17517915/2016/9/2',
+        'https://onlinelibrary.wiley.com/toc/17517915/2016/9/3',
+        'https://onlinelibrary.wiley.com/toc/17517915/2016/9/4',
+        'https://onlinelibrary.wiley.com/toc/17517915/2016/9/5',
+        'https://onlinelibrary.wiley.com/toc/17517915/2016/9/6',
+        'https://onlinelibrary.wiley.com/toc/17517915/2017/10/1',
+        'https://onlinelibrary.wiley.com/toc/17517915/2017/10/2',
+        'https://onlinelibrary.wiley.com/toc/17517915/2017/10/3',
+        'https://onlinelibrary.wiley.com/toc/17517915/2017/10/4',
+        'https://onlinelibrary.wiley.com/toc/17517915/2017/10/5',
+        'https://onlinelibrary.wiley.com/toc/17517915/2017/10/6',
     ]
 
     rules = (
         # Extract links matching 'item.php' and parse them with the spider's method parse_item
-        Rule(LinkExtractor(allow=('onlinelibrary.wiley.com/doi/.*/.*/issuetoc', )), callback='parse_journal_wiley'),
+
+        #Rule(LinkExtractor(allow=('onlinelibrary.wiley.com/doi/.*/.*/issuetoc', )), callback='parse_journal_wiley'),
         Rule(LinkExtractor(allow=('issue/.*issue-\d+/$', )), callback='parse_journal_wiley'),
+        Rule(LinkExtractor(allow=('toc/\w+/\d+/\d+/\d+$', )), callback='parse_journal_wiley_new'),
 
         # Extract links matching 'category.php' (but not matching 'subsection.php')
         # and follow links from them (since no callback means follow=True by default).
         Rule(LinkExtractor(allow=(
                 '.*journal/.*issues\?activeYear=201[5-7]$', #103
+                #'loi/\d+/year/200[5-9]$',
+                'loi/\w+/year/201[6-7]$',
             ))),
     )
 
@@ -241,6 +296,71 @@ class WileySpider(CrawlSpider):
                     "doi" : doi,
                     "link": "unkonw"
                 }
+
+    #2018年，发现wiley改版了
+    def parse_journal_wiley_new(self, response):
+        journal = response.xpath("//*[@id='journal-banner-text']/text()").extract_first()
+        volume_issue_info = Utils.get_all_inner_texts(response, "//div[@class='cover-image__parent-item']")
+        volume = Utils.regex_extract(volume_issue_info, "Volume (\d+),")
+        issue = Utils.regex_extract(volume_issue_info, "Issue (\d+)")
+
+        articles = response.xpath("//div[@class='issue-item']")
+        for article in articles:
+            title = Utils.get_all_inner_texts(article, ".//a[@class='issue-item__title']/h2").strip().replace("\n", " ")
+            article_url = article.xpath(".//a[@class='issue-item__title']/@href").extract_first()
+            article_url = urlparse.urljoin(response.url, article_url)
+
+            author = article.xpath("./ul[@class='rlist--inline loa comma loa-authors-trunc']/li//span/text()").extract()
+
+            try:
+                page_elem = Utils.select_element_by_content(article, "./ul[@class='rlist--inline separator']/li", "Pages")
+                page = page_elem.xpath(".//span[last()]/text()").extract_first()
+            except Exception as e:
+                page_elem = article.xpath("./ul[@class='rlist--inline separator']/li[1]")
+                page = page_elem.xpath(".//span[last()]/text()").extract_first()
+
+            try:
+                release_date_elem = Utils.select_element_by_content(article, "./ul[@class='rlist--inline separator']/li", "Published:")
+                release_date = release_date_elem.xpath(".//span[last()]/text()").extract_first()
+            except Exception as e:
+                release_date = ""
+
+            pdf_link = urlparse.urljoin(response.url, article.xpath(".//li[@class='readcubeEPdfLink']/a/@href").extract_first())
+            doi = Utils.regex_extract(article_url, ".*onlinelibrary.wiley.com/doi/(.*)")
+
+            meta =  {
+                'journal' : journal,
+                "title" : title,
+                "release_date" : release_date,
+                "volume" : volume,
+                "issue" : issue,
+                "page" : page,
+                "pdf_link": pdf_link,
+                'journal_url': response.url,
+                "access_url" : article_url,
+                "author" : author,
+                "doi": doi,
+            }
+
+            yield response.follow(article_url, self.parse_journal_wiley_article_new, meta = meta)
+
+    #主要是为了获得摘要
+    def parse_journal_wiley_article_new(self, response):
+        abstract = Utils.get_all_inner_texts(response, "//div[@class='article-section__content en main']")
+        yield {
+            'journal' : response.meta["journal"],
+            "title" : response.meta["title"],
+            "release_date" : response.meta["release_date"],
+            "volume" : response.meta["volume"],
+            "issue" : response.meta["issue"],
+            "page" : response.meta["page"],
+            "pdf_link": response.meta["pdf_link"],
+            'journal_url': response.meta["journal_url"],
+            "access_url" : response.meta["access_url"],
+            "author" : response.meta["author"],
+            "doi": response.meta["doi"],
+            "abstract": abstract,
+        }
 
     def parse_journal_100(self, response):
         self.logger.info("Get an journal page for journal 100: %s", response.url)

@@ -90,4 +90,3 @@ if __name__ == '__main__':
     excel_file = sys.argv[2]
     meta_format = OaConferenceFormat(origin_meta_file, excel_file)
     meta_format.start()
-    
