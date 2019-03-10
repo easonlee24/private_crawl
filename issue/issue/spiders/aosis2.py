@@ -18,29 +18,29 @@ from dateparser.date import DateDataParser
 class Aosis2(BasePortiaSpider):
     name = "aosis2"
     allowed_domains = []
-    f = open("/Users/baidu/work/private_crawl/issue/issue/OA_20180809/aosis_satnt.url");
-    start_urls = [url.strip() for url in f.readlines()]
-    #start_urls = [
-    #    u'http://www.satnt.ac.za/issue/archive',
-    #    u'http://www.ve.org.za/index.php/VE/issue/archive',
-    #    u'http://www.actacommercii.co.za/index.php/acta/issue/archive',
-    #    u'http://www.aejonline.org/index.php/aej/issue/archive',
-    #    u'http://www.ajod.org/index.php/ajod/issue/archive',
-    #    u'http://www.ajlmonline.org/index.php/ajlm/issue/archive',
-    #    u'http://www.phcfm.org/index.php/phcfm/issue/archive',
-    #    u'http://www.avehjournal.org/index.php/aveh/issue/archive',
-    #    u'http://www.curationis.org.za/index.php/curationis/issue/archive',
-    #    u'http://www.hts.org.za/index.php/HTS/issue/archive',
-    #    u'http://www.indieskriflig.org.za/index.php/skriflig/issue/archive',
-    #    u'http://www.jtscm.co.za/index.php/jtscm/issue/archive',
-    #    u'http://www.koedoe.co.za/index.php/koedoe/issue/archive',
-    #    u'http://www.literator.org.za/index.php/literator/issue/archive',
-    #    u'http://www.pythagoras.org.za/index.php/pythagoras/issue/archive',
-    #    u'http://www.rw.org.za/index.php/rw/issue/archive',
-    #    u'http://www.sajhrm.co.za/index.php/sajhrm/issue/archive',
-    #    u'http://www.sajip.co.za/index.php/sajip/issue/archive',
-    #    u'http://www.sajr.org.za/index.php/sajr/issue/archive',
-    #    u'http://www.sajp.co.za/index.php/sajp/issue/archive']
+    #f = open("/Users/baidu/work/private_crawl/issue/issue/OA_20180809/aosis_satnt.url");
+    #start_urls = [url.strip() for url in f.readlines()]
+    start_urls = [
+        u'http://www.satnt.ac.za/issue/archive',
+        u'http://www.ve.org.za/index.php/VE/issue/archive',
+        u'http://www.actacommercii.co.za/index.php/acta/issue/archive',
+        u'http://www.aejonline.org/index.php/aej/issue/archive',
+        u'http://www.ajod.org/index.php/ajod/issue/archive',
+        u'http://www.ajlmonline.org/index.php/ajlm/issue/archive',
+        u'http://www.phcfm.org/index.php/phcfm/issue/archive',
+        u'http://www.avehjournal.org/index.php/aveh/issue/archive',
+        u'http://www.curationis.org.za/index.php/curationis/issue/archive',
+        u'http://www.hts.org.za/index.php/HTS/issue/archive',
+        u'http://www.indieskriflig.org.za/index.php/skriflig/issue/archive',
+        u'http://www.jtscm.co.za/index.php/jtscm/issue/archive',
+        u'http://www.koedoe.co.za/index.php/koedoe/issue/archive',
+        u'http://www.literator.org.za/index.php/literator/issue/archive',
+        u'http://www.pythagoras.org.za/index.php/pythagoras/issue/archive',
+        u'http://www.rw.org.za/index.php/rw/issue/archive',
+        u'http://www.sajhrm.co.za/index.php/sajhrm/issue/archive',
+        u'http://www.sajip.co.za/index.php/sajip/issue/archive',
+        u'http://www.sajr.org.za/index.php/sajr/issue/archive',
+        u'http://www.sajp.co.za/index.php/sajp/issue/archive']
     rules = [
         Rule(
             LinkExtractor(

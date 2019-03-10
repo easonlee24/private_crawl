@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import scrapy
-from scrapy.spider import CrawlSpider, Rule
+from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from scrapy.http.request import Request
 
@@ -16,10 +16,11 @@ class BmjUrlSpider(CrawlSpider):
     #def __init__(self, url_file=None, *args, **kwargs):
     #    self.url_file = url_file
 
+    # 先注释掉，不然scrapy启动	
     #f = open("/Users/baidu/work/simplehttp/bmj.url")
-    f = open("/Users/baidu/work/private_crawl/issue/issue/OA_20180809/bmj_miss_url")
-    start_urls = [url.strip() for url in f.readlines()]
-    f.close()
+    #f = open("/Users/baidu/work/private_crawl/issue/issue/OA_20180809/bmj_miss_url")
+    #start_urls = [url.strip() for url in f.readlines()]
+    #f.close()
 
     #rules = (
     #    Rule(LinkExtractor(allow=('bmj.com/content/\d+/\d+$', )), callback='parse_issue'),
