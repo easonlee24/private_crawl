@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import scrapy
-from scrapy.spider import CrawlSpider, Rule
+from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from scrapy.http.request import Request
 
@@ -17,9 +17,10 @@ class OxfordSpider(CrawlSpider):
     #def __init__(self, url_file=None, *args, **kwargs):
     #    self.url_file = url_file
 
-    f = open("/Users/baidu/work/simplehttp/oxfordjournals.url")
-    start_urls = [url.strip() for url in f.readlines()]
-    f.close()
+    # 先注释掉
+    #f = open("/Users/baidu/work/simplehttp/oxfordjournals.url")
+    #start_urls = [url.strip() for url in f.readlines()]
+    #f.close()
 
     rules = (
         Rule(LinkExtractor(allow=('academic.oup.com/[^/]+/issue/\d+/\d+$', )), callback='parse_issue'),
