@@ -25,7 +25,6 @@ class OECDSpider(scrapy.Spider):
         self.download_dir = "oecd_data"
         self.source = "oecd"
         self.source_url = "http://www.oecd-ilibrary.org/"
-        print self.countrys
 
     """check whether country exist in country_option
 
@@ -57,6 +56,8 @@ class OECDSpider(scrapy.Spider):
             country_value = country_option.xpath("./@value").extract_first().strip()
             country_name = country_option.xpath("./text()").extract_first().strip().lower()
             self.exist_countrys[country_name] = [country_name, country_value]
+
+        print self.exist_countrys
 
         for country_name in self.countrys:
             country_info = self.get_country_info(country_name)
