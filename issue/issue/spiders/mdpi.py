@@ -1,0 +1,124 @@
+# -*- coding: utf-8 -*-
+# 2019-05-18
+# Mdpi期刊的爬虫，支持续采
+import scrapy
+import urlparse
+from utils import Utils
+from scrapy.http.request import Request
+import re
+import json
+import urlparse
+
+class MdpiSpider(scrapy.Spider):
+    name = 'mdpi'
+
+    """
+    @param start_year 爬起的期刊发布日期>=start_year, 为None时没有此限制。
+    """
+    def __init__(self, url_file=None, start_year=None):
+        self.url_file = url_file
+        if start_year is None:
+            self.start_year = 0
+        else:
+            self.start_year = start_year
+
+    def start_requests(self):
+        with open(self.url_file, "rb") as f:
+            for line in f:
+                meta = {"journal_url": line.strip()}
+                yield Request(line.strip(), self.crawl_homepage, meta = meta, dont_filter=True)
+
+    def crawl_homepage(self, response):
+        journals = response.xpath("//div[@class='show-for-large-up']//li[@class='side-menu-li']/a")
+        for journal in journals:
+            link_text = journal.xpath("./text()").extract_first().strip()
+            year = Utils.regex_extract(link_text, "Vol.*\((\d+)\).*")
+            url = urlparse.urljoin(response.url, journal.xpath("./@href").extract_first())
+            if year >= self.start_year:
+                meta = {"journal_url": response.meta["journal_url"]}
+                yield Request(url, self.crawl_journal, meta = meta)
+
+    def crawl_journal(self, response):
+        issues = response.xpath("//div[@id='middle-column']//div[@class='issue-cover']")
+        for issue in issues:
+            url = urlparse.urljoin(response.url, issue.xpath(".//a/@href").extract_first())
+            meta = {"journal_url": response.meta["journal_url"]}
+            yield Request(url, self.crawl_issue, meta = meta)
+
+    def crawl_issue(self, response):
+        issues = response.xpath(".//a[@class='title-link']")
+        for issue in issues:
+            url = urlparse.urljoin(response.url, issue.xpath("./@href").extract_first())
+            meta = {"journal_url": response.meta["journal_url"]}
+            yield Request(url, self.crawl_issue_info, meta = meta)
+
+    def crawl_issue_info(self, response):
+        article_title = Utils.extract_all_text_with_xpath(response, ".//h1[@class='title hypothesis_container']")
+
+        #作者
+        authors = response.xpath(".//div[@class='art-authors hypothesis_container']/span[@class='inlineblock']")
+        index = 0
+        author = ""
+        for author_elem in authors:
+            author_name = author_elem.xpath("./a[@itemprop='author']/text()").extract_first()
+            try:
+                sup = author_elem.xpath("./sup/text()").extract_first().strip()
+            except Exception as e:
+                sup = ""
+            if index != 0:
+                author += ";"
+
+            # 有可能没有作者机构
+            if sup != "":
+                author += "%s^%s" % (author_name, sup)
+            else:
+                author += author_name
+            index += 1
+
+        #作者机构
+        affiliations = response.xpath(".//div[@class='affiliation']")
+        index = 0
+        auth_institution = ""
+        for affiliation in affiliations:
+            sup = affiliation.xpath(".//sup/text()").extract_first()
+            text = Utils.extract_text_with_xpath(affiliation, "./div[@class='affiliation-name ']")
+            if index != 0:
+                auth_institution += ";"
+            auth_institution += "%s^%s" %(text, sup)
+            index += 1
+
+        identity = response.xpath(".//div[@class='bib-identity']")
+        doi = Utils.extract_text_with_xpath(identity, "./a")
+        source_year = Utils.extract_text_with_xpath(identity, "./b")
+        source_volume = Utils.extract_text_with_xpath(identity, "./em[last()]")
+        text = Utils.extract_all_text_with_xpath(response, ".//div[@class='bib-identity']")
+        source_issue = Utils.regex_extract(text, ".*(\d+).*")
+        article_abstract = Utils.extract_all_text_with_xpath(response, ".//div[@class='art-abstract in-tab hypothesis_container']")
+        keyword = Utils.extract_text_with_xpath(response, ".//span[@itemprop='keywords']")
+        file_path = response.url
+
+        #pdf连接
+        try:
+            pdf_elem = Utils.select_element_by_content(response, ".//div[@class='dwnld_block']", "PDF")
+            download_path = urlparse.urljoin(response.url, pdf_elem.xpath("./a/@href").extract_first())
+        except Exception as e:
+            pdf_elem = response.xpath(".//div[@class='dwnld_block']")
+            download_path = urlparse.urljoin(response.url, pdf_elem[-1].xpath("./a/@href").extract_first())
+
+        process_date = Utils.current_date()
+
+        yield {
+            "article_title" : article_title,
+            "author": author,
+            "auth_institution": auth_institution,
+            "doi": doi,
+            "source_year": source_year,
+            "source_volume": source_volume,
+            "source_issue": source_issue,
+            "article_abstract": article_abstract,
+            "keyword": keyword,
+            "file_path": file_path,
+            "download_path": download_path,
+            "process_date": process_date,
+            "journal_url" : response.meta["journal_url"]
+        }
