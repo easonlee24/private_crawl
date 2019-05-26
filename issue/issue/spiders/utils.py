@@ -25,6 +25,24 @@ class Utils(object):
                 return elem
 
         raise Exception("can not found element(%s) with content(%s)" % (xpath, selected_content))
+
+    """
+    First select elements by content, Then join all contents from these selected elements
+
+    @param 可以用来爬取有多重ISBN的场景，比如EPUB、PDF、HTML
+    """
+    @staticmethod
+    def get_all_inner_texts_from_selected_element(response, xpath, selected_content):
+        selected_contents = selected_content.split('|')
+        rets = []
+        for content in selected_contents:
+            try:
+                selected_elem = Utils.select_element_by_content(response, xpath, content)
+            except Exception:
+                continue
+            rets.append(Utils.get_all_inner_texts(selected_elem, None))
+
+        return ",".join(rets)
         
     """
     获取元素下面的所有文本内容，排除其他内嵌标签的影响。
@@ -33,7 +51,10 @@ class Utils(object):
     """
     @staticmethod
     def get_all_inner_texts(response, xpath, split_char = '\n'):
-        elems = response.xpath(xpath)
+        if xpath is None:
+            elems = [response]
+        else:
+            elems = response.xpath(xpath)
         content = ""
         for elem in elems:
             # inner text should strip newchar and join with space
@@ -135,7 +156,9 @@ class Utils(object):
                 'April' : 4,
                 'May' : 5, 
                 'June' : 6, 
+                "Jun" : 6,
                 'July' : 7, 
+                'Jul' : 7,
                 'Aug': 8,
                 'August' : 8,
                 'Sept' : 9, 
@@ -213,6 +236,10 @@ class Utils(object):
     @staticmethod
     def current_time():
         return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+
+    @staticmethod
+    def current_date():
+        return time.strftime('%Y%m%d', time.localtime(time.time()))
 
     @staticmethod
     def extract_with_xpath(root, xpath_str, default_value = ""):
