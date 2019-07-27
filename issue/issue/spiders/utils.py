@@ -61,6 +61,7 @@ class Utils(object):
             elem_text = " ".join([v.replace("\n", " ") for v in elem.xpath(".//text()").extract()])
             content = content + elem_text + split_char
         content = content.strip()
+        content = re.sub('\t+', ' ', content)
         content = re.sub(' +', ' ', content)
         return content
 
@@ -70,6 +71,10 @@ class Utils(object):
         result = re.sub(r'[^\x00-\x7F]+', replace_char, origin)
         result = re.sub(' +', ' ', result)
         return result
+
+    @staticmethod
+    def remove_separator(origin):
+        return origin.replace("\n", "").replace("\t", "").strip()
 
     @staticmethod
     def _select_element_by_content_inner(response, xpath, selected_content):
@@ -254,6 +259,9 @@ class Utils(object):
     def extract_text_with_xpath(root, xpath_str, default_value = ""):
         return Utils.extract_with_xpath(root, xpath_str + "/text()", default_value)
 
+    """
+    如果某个xpath表达式命中了多个元数，则全部提取出来。
+    """
     @staticmethod
     def extract_all_with_xpath(root, xpath_str, default_value = "", join_str = ""):
         try:
@@ -447,6 +455,31 @@ class Utils(object):
         ret = text.replace("\n", "")
         return ' '.join(ret.split())
 
+    """
+    OA期刊判断sup是否是有效的
+    """
+    @staticmethod
+    def is_valiad_author_sup(sup):
+        return sup.isdigit() or sup == "*"
+
+    @staticmethod
+    def is_valiad_affliation_sup(sup):
+        return sup.isdigit()
+
+    @staticmethod
+    def is_valid_affliation(affiliation):
+        affiliation = affiliation.replace("\n", "").strip()
+        blacklist = ["Corresponding Author"]
+        return affiliation not in blacklist and affiliation != ""
+
+    @staticmethod
+    def format_oa_sup(sup):
+        if sup == "":
+            return ""
+        sups = sup.split(",")
+        sups = [v for v in sups if Utils.is_valiad_author_sup(v)]
+        return ",".join(sups)
+
     def load_journal_meta(all_journal_meta_xls):
         """
         Load all journal meta info from xls file
@@ -487,6 +520,8 @@ class Utils(object):
             'collection_id': rowValues[43],
             'source_id': rowValues[44]}
         return all_journal_meta
+
+
 
 if __name__ == '__main__':
     #text = "Vol. 35, No. 1 (April 2010), pp. 51-71"
