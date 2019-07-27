@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*- 
+# Description: 20190408: oecd的网站又发生了改版，且需求也有一定的变化。新需求是新增的需求，检索出来了380条内容，主要是Books和Statistics。本程序输入检索出来的url，爬取urol
+# Usage: scrapy crawl new_oecd -a url_file=xxx
+import scrapy
+import re
+import sys
+import urlparse
+import sys
+import datetime
+from utils import Utils
+reload(sys)
+sys.setdefaultencoding('utf8')
+from scrapy.http.request import Request
+
+class NewOECDSpider(scrapy.Spider):
+    name = "new_oecd"
+
+    def __init__(self, url_file=None, *args, **kwargs):
+        super(NewOECDSpider, self).__init__(*args, **kwargs)
+        self.url_file = url_file
+
+    def start_requests(self):
+        with open(self.url_file, "rb") as f:
+            for line in f:
+                yield Request(line.strip(), self.parse, dont_filter=True)
+
+    def parse(self, response):
+        type = response.xpath(".//ol[@class='breadcrumb']/li[2]/a/text()").extract_first().strip()
+        if type == "Statistics":
+            return self.process_statistics(response)
+        elif  type == "Books":
+            return self.process_books(response)
+        else:
+            raise Exception("unexcepted type: %s" % type)
+
+    def process_statistics(self, response):
+        latest = response.xpath(".//div[@class='row section-title']")
+        edition_type = latest.xpath(".//p[@class='edition-type']/text()").extract_first().strip()
+        if edition_type not in  ('Latest Edition', 'Latest Issue'):
+            raise Exception("unexcepted edition type: %s" % edition_type)
+
+        title = latest.xpath(".//h2/text()").extract_first()
+        description = Utils.get_all_inner_texts(latest, ".//div[@class='description js-fulldescription']")
+        pdf_link = urlparse.urljoin(response.url, latest.xpath(".//a[@class='action-pdf enabled']/@href").extract_first())
+
+        meta_section = response.xpath(".//div[@class='block-infos-sidebar date-daily col-xs-12']")
+        author = Utils.get_all_inner_texts(meta_section, "./p[1]")
+        release_date = Utils.format_datetime(Utils.get_all_inner_texts(meta_section, "./p[2]"))
+        pages = Utils.get_all_inner_texts(meta_section, "./p[3]")
+        isbn = Utils.get_all_inner_texts(meta_section, "./p[5]")
+        doi = Utils.get_all_inner_texts(meta_section, "./a")
+        yield {
+            "url": response.url,
+            "title": title,
+            "abstract": description,
+            "pdf_link": pdf_link,
+            "author": author,
+            "release_date": release_date,
+            "pages": pages,
+            "isbn": isbn,
+            "doi": doi,
+            "type": "Statistics"
+        }
+
+    def process_books(self, response):
+        latest = response.xpath(".//div[@class='row section-title']")
+        if latest is None:
+            #如果没有最新的数据，那么从odd的数据中选择2017-2018的数据
+            old_records = response.xpath("//table[id='collectionsort']"//tr[role='row'])
+            for old_record in old_records:
+                release_date = old_record.xpath("./td[@class='date-rd']//@data-order").extract_first()
+                release_year = release_date.split('-')[0]
+                if release_year < 2017:
+                    break
+
+                article_url = urlparse.urljoin(response.url, old_record.xpath(".//td[@class='title-td']/a/@href").extract_first())
+                yield response.follow(article_url, self.parse)
+
+        edition_type = latest.xpath(".//p[@class='edition-type']/text()").extract_first().strip()
+        if edition_type not in  ('Latest Edition', 'Latest Issue'):
+            raise Exception("unexcepted edition type: %s" % edition_type)
+
+        title = Utils.get_all_inner_texts(latest, ".//h2").strip("\"")
+        description = Utils.get_all_inner_texts(latest, ".//div[@class='description js-fulldescription']")
+        pdf_link = urlparse.urljoin(response.url, latest.xpath(".//a[@class='action-pdf enabled']/@href").extract_first())
+
+        meta_section = response.xpath(".//div[@class='block-infos-sidebar date-daily col-xs-12']")
+        author = Utils.get_all_inner_texts(meta_section, "./p[1]")
+        release_date = Utils.format_datetime(Utils.get_all_inner_texts(meta_section, "./p[2]"))
+        pages = Utils.get_all_inner_texts(meta_section, "./p[3]")
+        isbn = Utils.get_all_inner_texts(meta_section, "./p[5]")
+        doi = Utils.get_all_inner_texts(meta_section, "./a")
+        yield {
+            "url": response.url,
+            "title": title,
+            "abstract": description,
+            "pdf_link": pdf_link,
+            "author": author,
+            "release_date": release_date,
+            "pages": pages,
+            "isbn": isbn,
+            "doi": doi,
+            "type": "Book",
+        }

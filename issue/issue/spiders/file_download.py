@@ -189,7 +189,6 @@ class FileDownload(scrapy.Spider):
 
         with open(filename, "wb") as f:
             f.write(content)
-        f.close()
 
     def _content_is_pdf(self, response):
         #print "check if is pdf, print header:"

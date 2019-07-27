@@ -24,10 +24,10 @@ class MdpiSpider(scrapy.Spider):
 
     def start_requests(self):
         # 调试
-        #meta = {"journal_url": "url"}
-        #url = "https://www.mdpi.com/2073-4433/9/10/401"
-        #yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
-        #return
+        meta = {"journal_url": "url"}
+        url = "https://www.mdpi.com/2076-2615/8/12/219"
+        yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
+        return
 
         with open(self.url_file, "rb") as f:
             for line in f:
@@ -59,7 +59,7 @@ class MdpiSpider(scrapy.Spider):
             yield Request(url, self.crawl_issue_info, meta = meta)
 
     def crawl_issue_info(self, response):
-        article_title = Utils.get_all_inner_texts(response, ".//h1[@class='title hypothesis_container']")
+        article_title = Utils.extract_all_text_with_xpath(response, ".//h1[@class='title hypothesis_container']")
 
         #作者
         authors = response.xpath(".//div[@class='art-authors hypothesis_container']/span[@class='inlineblock']")
@@ -75,11 +75,10 @@ class MdpiSpider(scrapy.Spider):
                 author += ";"
 
             # 有可能没有作者机构
-            sup = Utils.format_oa_sup(sup)
-            if sup != "":
+            if Utils.is_valiad_sup(sup):
                 author += "%s^%s" % (author_name, sup)
             else:
-                author += "%s^%s" % (author_name, "1")
+                author += author_name
             index += 1
 
         #作者机构
@@ -88,18 +87,13 @@ class MdpiSpider(scrapy.Spider):
         auth_institution = ""
         for affiliation in affiliations:
             sup = affiliation.xpath(".//sup/text()").extract_first()
-            if sup is None:
-                sup = "1"
             text = Utils.extract_text_with_xpath(affiliation, "./div[@class='affiliation-name ']")
-            if text == "":
-                text = Utils.extract_text_with_xpath(affiliation, "./div[contains(@class, 'affiliation-name')]")
             if index != 0:
                 auth_institution += ";"
-            if Utils.is_valiad_affliation_sup(sup):
+            if Utils.is_valiad_sup(sup):
                 auth_institution += "%s^%s" %(text, sup)
             else:
-                # 非法的作者机构，忽略
-                continue
+                auth_institution += "%s^%s" %(text, sup)
                 
             index += 1
 
@@ -107,10 +101,10 @@ class MdpiSpider(scrapy.Spider):
         doi = Utils.extract_text_with_xpath(identity, "./a")
         source_year = Utils.extract_text_with_xpath(identity, "./b")
         source_volume = Utils.extract_text_with_xpath(identity, "./em[last()]")
-        text = Utils.get_all_inner_texts(response, ".//div[@class='bib-identity']")
-        source_issue = Utils.regex_extract(text, ".*\((\d+)\).*")
-        article_abstract = Utils.get_all_inner_texts(response, ".//div[@class='art-abstract in-tab hypothesis_container']").replace("Abstract", "").strip()
-        keyword = Utils.get_all_inner_texts(response, ".//span[@itemprop='keywords']")
+        text = Utils.extract_all_text_with_xpath(response, ".//div[@class='bib-identity']")
+        source_issue = Utils.regex_extract(text, ".*(\d+).*")
+        article_abstract = Utils.extract_all_text_with_xpath(response, ".//div[@class='art-abstract in-tab hypothesis_container']")
+        keyword = Utils.extract_text_with_xpath(response, ".//span[@itemprop='keywords']")
         file_path = response.url
 
         #pdf连接
@@ -122,6 +116,7 @@ class MdpiSpider(scrapy.Spider):
             download_path = urlparse.urljoin(response.url, pdf_elem[-1].xpath("./a/@href").extract_first())
 
         process_date = Utils.current_date()
+
         yield {
             "article_title" : article_title,
             "author": author,
