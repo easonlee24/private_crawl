@@ -50,6 +50,9 @@ class JstorSpider(scrapy.Spider):
                             print "filter url: %s" % url
                         else:
                             meta = {"origin_url" : json_data["url"]}
+                            url = "https://www.jstor.org/stable/25097205?seq=1#page_scan_tab_contents"
+                            yield Request(url, self.parse_issue, meta = meta, dont_filter = True)
+                            return
                             yield Request(json_data["url"], self.parse_issue, meta = meta, dont_filter = True)
                         #return
             return
@@ -111,6 +114,8 @@ class JstorSpider(scrapy.Spider):
         pdf_url = "http://www.jstor.org/stable/pdf/%s.pdf" % stable_id
 
         keywords = Utils.extract_all_text_with_xpath(response, "//div[@class='topics-list mtl']/a", join_str = ",")
+
+        author = Utils.extract_text_with_xpath(response, "//div[@class='contrib']")
 
         yield {
             "url" : response.url,

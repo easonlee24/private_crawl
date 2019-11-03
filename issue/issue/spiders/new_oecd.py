@@ -8,6 +8,7 @@ import sys
 import urlparse
 import sys
 import datetime
+import json
 from utils import Utils
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -16,14 +17,28 @@ from scrapy.http.request import Request
 class NewOECDSpider(scrapy.Spider):
     name = "new_oecd"
 
-    def __init__(self, url_file=None, *args, **kwargs):
+    def __init__(self, url_file=None, revised = None, *args, **kwargs):
         super(NewOECDSpider, self).__init__(*args, **kwargs)
         self.url_file = url_file
 
+        if revised == "True":
+            self.revised = True
+        else:
+            self.revised = False
+
     def start_requests(self):
+        #url = 'https://www.oecd-ilibrary.org/governance/oecd-sovereign-borrowing-outlook_23060476'
+        #meta = {"type": "type"}
+        #yield Request(url, self.process_issue, dont_filter=True, meta = meta)
+        #return
         with open(self.url_file, "rb") as f:
             for line in f:
-                yield Request(line.strip(), self.parse, dont_filter=True)
+                if self.revised:
+                    elem = json.loads(line.strip())
+                    meta = {"type": elem["type"]}
+                    yield Request(elem['url'], self.process_issue, dont_filter=True, meta = meta)
+                else:
+                    yield Request(line.strip(), self.parse, dont_filter=True)
 
     def parse(self, response):
         type = response.xpath(".//ol[@class='breadcrumb']/li[2]/a/text()").extract_first().strip()
@@ -62,6 +77,36 @@ class NewOECDSpider(scrapy.Spider):
     #        "doi": doi,
     #        "type": "Statistics"
     #    }
+
+    def process_issue(self, response):
+        latest = response.xpath(".//div[@class='row section-title']")[-1]
+        title = Utils.get_all_inner_texts(latest, ".//h2[1]").strip("\"")
+        description = Utils.get_all_inner_texts(latest, ".//div[@class='description js-fulldescription']")
+        pdf_link = urlparse.urljoin(response.url, latest.xpath(".//a[@class='action-pdf enabled']/@href").extract_first())
+        meta_section = response.xpath(".//div[@class='block-infos-sidebar date-daily col-xs-12']")
+        author = Utils.get_all_inner_texts(meta_section, "./p[1]").replace("Authors", "").strip()
+        release_date = Utils.format_datetime(Utils.get_all_inner_texts(meta_section, "./p[2]"))
+        pages = Utils.get_all_inner_texts(meta_section, "./p[3]").replace("pages", "").strip()
+        isbn = Utils.get_all_inner_texts_from_selected_element(meta_section, "./p", "(PDF)|(EPUB)|(HTML)")
+        doi = Utils.get_all_inner_texts(meta_section, "./a")
+        language = Utils.get_all_inner_texts(latest, ".//p[@class='language']//strong[@class='bold']")
+        pdf_file = Utils.doi_to_filname(doi) + ".pdf"
+        if doi == '':
+            return
+        yield {
+            "url": response.url,
+            "title": title,
+            "abstract": description,
+            "pdf_link": pdf_link,
+            "pdf_file": pdf_file,
+            "author": author,
+            "release_date": release_date,
+            "pages": pages,
+            "isbn": isbn,
+            "doi": doi,
+            "type": response.meta["type"],
+            "language": language
+        }
 
     def process(self, response, type):
         #如果有过去(old)的文章集合，那么从old的数据中选择大于等于2017年的数据
@@ -118,5 +163,3 @@ class NewOECDSpider(scrapy.Spider):
                 "type": type,
                 "language": language
             }
-
-        

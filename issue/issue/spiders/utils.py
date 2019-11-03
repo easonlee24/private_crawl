@@ -108,19 +108,23 @@ class Utils(object):
     将罗马数字转化为阿拉伯数字 
     """
     @staticmethod
-    def transform_roman_num2_alabo(one_str):  
+    def transform_roman_num2_alabo(one_str):
         one_str = one_str.upper()
-        define_dict={'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000}  
+        define_dict={'I':1,'V':5,'X':10,'L':50}  
         if one_str=='0':  
-		    return 0  
+            return 0
         else:  
-		    res=0  
-		    for i in range(0,len(one_str)):  
-			    if i==0 or define_dict[one_str[i]]<=define_dict[one_str[i-1]]:  
-				    res+=define_dict[one_str[i]]  
-			    else:  
-			    	res+=define_dict[one_str[i]]-2*define_dict[one_str[i-1]]  
-		    return res  
+            res=0
+            for i in range(0,len(one_str)):
+                if one_str[i] not in define_dict:
+                    raise Exception("not roman")
+
+                if i==0 or define_dict[one_str[i]]<=define_dict[one_str[i-1]]:
+                    res+=define_dict[one_str[i]]
+                else:
+                    res+=define_dict[one_str[i]]-2*define_dict[one_str[i-1]]
+            return res
+
 
     """
     Parse date from string
@@ -467,10 +471,18 @@ class Utils(object):
         return sup.isdigit()
 
     @staticmethod
-    def is_valid_affliation(affiliation):
+    def is_valid_affliation(affiliation, origin_blacklist = None):
         affiliation = affiliation.replace("\n", "").strip()
-        blacklist = ["Corresponding Author"]
-        return affiliation not in blacklist and affiliation != ""
+        blacklist = ["Corresponding Author", "Email"]
+        blacklist.extend(origin_blacklist)
+        if affiliation == "":
+            return False;
+
+        for i in blacklist:
+            if affiliation.find(i) != -1:
+                return False;
+
+        return True;
 
     @staticmethod
     def format_oa_sup(sup):

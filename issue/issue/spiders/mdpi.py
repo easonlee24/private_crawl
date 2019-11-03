@@ -115,8 +115,8 @@ class MdpiSpider(scrapy.Spider):
 
         #pdf连接
         try:
-            pdf_elem = Utils.select_element_by_content(response, ".//div[@class='dwnld_block']", "PDF")
-            download_path = urlparse.urljoin(response.url, pdf_elem.xpath("./a/@href").extract_first())
+            pdf_elem = Utils.select_element_by_content(response, ".//div[@class='download']/a", "PDF")
+            download_path = urlparse.urljoin(response.url, pdf_elem.xpath("./@href").extract_first())
         except Exception as e:
             pdf_elem = response.xpath(".//div[@class='dwnld_block']")
             download_path = urlparse.urljoin(response.url, pdf_elem[-1].xpath("./a/@href").extract_first())

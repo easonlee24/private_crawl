@@ -16,19 +16,37 @@ class Scielo(scrapy.Spider):
     """
     @param start_year 爬起的期刊发布日期>=start_year, 为None时没有此限制。
     """
-    def __init__(self, url_file=None, start_year=None):
+    def __init__(self, url_file=None, start_year=None, revised = None):
         self.url_file = url_file
         if start_year is None:
-            self.start_year = 0
+            self.start_year = "2018"
         else:
             self.start_year = start_year
 
+        if revised is not None and revised == "True":
+            self.revised = True
+        else:
+            self.revised = False
+
     def start_requests(self):
+        #url = "http://www.scielo.br/scielo.php?script=sci_arttext&pid=S0104-06182019000200541&lng=en&nrm=iso&tlng=pt"
+        #meta = {"volume": "", "issue": "ahead of print", "journal_url": "journal_url", "year": 1}
+        #yield Request(url, self.crawl_issue_info, meta = meta)
+        #return
+
         with open(self.url_file, "rb") as f:
             for line in f:
-                meta = {"journal_url": line.strip()}
-                url = line.strip().replace("sci_serial", "sci_issues")
-                yield Request(url, self.crawl_homepage, meta = meta, dont_filter=True)
+                if self.revised:
+                    #元数据校订
+                    elem = json.loads(line.strip())
+                    meta = {"journal_url": elem["journal_url"], "volume": elem["source_volume"], "issue": elem["source_issue"], "year": elem["source_year"]}
+                    url = elem["file_path"]
+                    yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
+
+                else:
+                    meta = {"journal_url": line.strip()}
+                    url = line.strip().replace("sci_serial", "sci_issues")
+                    yield Request(url, self.crawl_homepage, meta = meta, dont_filter=True)
 
     def crawl_homepage(self, response):
         journals = response.xpath("//div[@class='content']/table[2]//tr//tr")
@@ -47,6 +65,7 @@ class Scielo(scrapy.Spider):
                 url = issue_elem.xpath("./@href").extract_first().strip()
                 issue = issue_elem.xpath("./text()").extract_first().strip()
                 meta = {"volume": volume, "issue": issue, "journal_url": response.meta["journal_url"], "year": year}
+
                 yield Request(url, self.crawl_journal, meta = meta)
 
     def crawl_journal(self, response):
@@ -90,11 +109,27 @@ class Scielo(scrapy.Spider):
         for affiliation in affiliations:
             if index != 0:
                 auth_institution += ";"
-            auth_institution += "%s^%s" % (affiliation, index + 1)
+
+            elems = affiliation.split(' ')
+            auth_sup = elems[0]
+            auth_name = "".join(elems[1:])
+            auth_institution += "%s^%s" % (auth_name, auth_sup)
             index += 1
 
         source_year = Utils.regex_extract(Utils.extract_all_text_with_xpath(response, "h3"), ".*(\\d{4})$")
         doi = Utils.extract_all_text_with_xpath(response, "//h4[@id='doi']")
+
+        # volume有可能为空，在这里补充一下
+        volume = response.meta['volume']
+        if volume == '':
+            meta_info = response.xpath("//h3/text()").extract_first()
+            volume = Utils.regex_extract(meta_info, "vol.(\d+)")
+
+        # issue可能是ahead of print, 尝试修正一下。
+        issue = response.meta['issue']
+        if issue == 'ahead of print':
+            meta_info = response.xpath("//h3/text()").extract_first()
+            issue = Utils.regex_extract(meta_info, "vol.*no.(\d+)")
 
         yield {
             "article_title": article_title,
@@ -102,15 +137,13 @@ class Scielo(scrapy.Spider):
             "auth_institution": auth_institution,
             "doi": doi,
             "source_year": source_year,
-            "source_volume": response.meta['volume'],
-            "source_issue": response.meta['issue'],
+            "source_volume": volume,
+            "source_issue": issue,
             "article_abstract": article_abstract,
             "keyword": keyword,
             "file_path": response.url,
             "download_path": download_path,
             "process_date": Utils.current_date(),
-            "volume": response.meta["volume"],
-            "issue": response.meta["issue"],
             "journal_url": response.meta["journal_url"],
             "source_year": response.meta["year"]
         }
@@ -127,9 +160,9 @@ class Scielo(scrapy.Spider):
 
     def get_title(self, response):
         #title也有多种情况..醉了
-        title = response.xpath("//p[@class='trans-title']/text()").extract_first()
-        if title is None:
-            title = response.xpath("//p[@class='title']/text()").extract_first()
+        title = Utils.get_all_inner_texts(response, "//p[@class='trans-title']")
+        if title == "":
+            title = Utils.get_all_inner_texts(response, "//p[@class='title']")
             if title is None:
                 try:
                     title_elem = response.xpath("//div[contains(@class, 'index')]//p[@align='CENTER']")[0]
@@ -141,21 +174,30 @@ class Scielo(scrapy.Spider):
                         title_elem = response.xpath("//div[contains(@class, 'index')]/p")[2]
                         title = " ".join(title_elem.xpath(".//text()").extract())
 
-        print "title is %s" % title
         return Utils.format_text(title)
 
     def get_abstract(self, response):
         try:
-            abstract_elem = Utils.select_element_by_content(response, "//div[contains(@class, 'index')]//p", "ABSTRACT|Abstract")
-            abstract_text = Utils.get_all_inner_texts(abstract_elem, "./following-sibling::p[1]").replace("Abstract:", "").strip()
+            elems = response.xpath("//div[@class='abstract']/div[@class='section']")
+            abstract_text = ""
+            if elems is not None and len(elems) > 0:
+                for elem in elems:
+                    abstract_text += " ".join(elem.xpath(".//text()").extract()) + "\n"
+            else:
+                try:
+                    abstract_elem = Utils.select_element_by_content(response, "//div[contains(@class, 'index')]//p", "ABSTRACT|Abstract")
+                    abstract_text = Utils.get_all_inner_texts(abstract_elem, "./following-sibling::p[1]").replace("Abstract:", "").strip()
+                except Exception as e:
+                    abstract_text = Utils.get_all_inner_texts(response, "//div[@class='abstract']").strip()
             return abstract_text
         except Exception as e:
             return ""
 
     def get_keyword(self, response):
         try:
-            keyword_elem = Utils.select_element_by_content(response, "//div[contains(@class, 'index')]//p", "Keywords|Index terms|Key words")
-            keyword_text = ";".join(keyword_elem.xpath(".//text()").extract()).replace("Keywords:", "").replace("Key words", "").strip(";")
+            keyword_elem = Utils.select_element_by_content(response, "//div[contains(@class, 'index')]//p", "Keywords|Index terms|Key words|PALAVRAS-CHAVE|Key-Words")
+            keyword_text = ";".join(keyword_elem.xpath(".//text()").extract()).replace("Keywords:", "").replace("Key words", "").replace("Key-Words", "").replace("PALAVRAS-CHAVE", "").strip(";")
+            keyword_text = ";".join([i.strip() for i in keyword_text.split(";") if i.strip() != "" and i.strip() != ":"])
         except Exception as e:
             return ""
         return keyword_text
@@ -182,7 +224,14 @@ class Scielo(scrapy.Spider):
     def get_author_sup(self, response):
         #有两种格式的author_sup
         try:
-            author_sup = response.xpath("//div[@class='autores']/p[@class='author']/sup/a/text()").extract()
+            #author_sup = response.xpath("//div[@class='autores']/p[@class='author']/sup/a/text()").extract()
+            elems = response.xpath("//div[@class='autores']/p[@class='author']")
+            author_sup = []
+            for elem in elems:
+                sup = ",".join(elem.xpath("./sup/a/text()").extract())
+
+                author_sup.append(sup)
+
             if len(author_sup) == 0:
                 i = 0
                 num = 1 #len(response.xpath("//div[contains(@class, 'index')]/p//sup"))
@@ -190,9 +239,39 @@ class Scielo(scrapy.Spider):
                 author_elem = sup_elem.xpath("./..")
                 author_sup = author_elem.xpath("./sup/text()").extract()
         except Exception as e:
-            return ""
+            print "error......."
+            return []
 
-        return author_sup
+
+        format_author_sup = []
+        for sup in author_sup:
+            elems = sup.split(",")
+            format_elems = []
+            for elem in elems:
+                try:
+                    text = Utils.transform_roman_num2_alabo(elem)
+                except Exception as e:
+                    text = elem
+                text = str(text)
+                if text >= 'a' and text <= 'z':
+                    text = ord(text) - ord('a') + 1
+
+                if text == "*":
+                    text = 1
+                elif text == "**":
+                    text = 2
+                elif text == "***":
+                    text = 3
+                elif text == "****":
+                    text = 4
+                elif text == "*****":
+                    text = 5
+                elif text == "******":
+                    text = 6
+                format_elems.append(str(text))
+            format_author_sup.append(",".join(format_elems))
+                
+        return format_author_sup
 
     def get_author_affiliation(self, response):
         #有两种格式的author_affiliation
@@ -208,7 +287,22 @@ class Scielo(scrapy.Spider):
                 sup_elem = response.xpath("//div[contains(@class, 'index')]/p//sup")[-1]
                 author_raw_text = sup_elem.xpath("./..").extract()
                 author_aff = author_raw_text
-                print "author affiliation is :%s" % author_aff
+
+            format_author_aff = []
+            for elem in author_aff:
+                if elem.startswith("*****"):
+                    elem = elem.replace("*", "5")
+                elif elem.startswith("****"):
+                    elem = elem.replace("****", "4")
+                elif elem.startswith("***"):
+                    elem = elem.replace("***", "3")
+                elif elem.startswith("**"):
+                    elem = elem.replace("**", "2")
+                elif elem.startswith("*"):
+                    elem = elem.replace("*", "1")
+
+                format_author_aff.append(elem)
+
         except Exception as e:
             return  ""
-        return author_aff
+        return format_author_aff

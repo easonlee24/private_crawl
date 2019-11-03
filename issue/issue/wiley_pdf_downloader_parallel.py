@@ -31,10 +31,10 @@ def close(driver):
         print "close windows catch exception: %s" % traceback.format_exc()
 
 def download_file(index, link, filename):
-    print "start to download %dth pdf: %s, time: %s" % (index, link, time.asctime(time.localtime(time.time())))
+    download_dir = os.path.join(base_dir, str(filename))
+    print "start to download %dth pdf to %s: %s, time: %s" % (index, download_dir, link, time.asctime(time.localtime(time.time())))
     success = False
     try:
-        download_dir = base_dir + "\\" + str(filename)
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
         else:
@@ -72,7 +72,7 @@ def download_file(index, link, filename):
             time.sleep(5)
             driver.find_element_by_xpath("//menu-button[@class='download']").click()
             time.sleep(10)
-            print "download success"
+            print "download success %s" % download_dir
             close(driver)
             return True
         except Exception as e:
@@ -91,7 +91,7 @@ def download_file_with_retry(index, link, filename, max_retry):
 
 with open(filename) as fp:
     index = 0
-    pool = ThreadPoolExecutor(max_workers=10)
+    pool = ThreadPoolExecutor(max_workers=3)
     index = 0
     for line in fp:
         index = index + 1

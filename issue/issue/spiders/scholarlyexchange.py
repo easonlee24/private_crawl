@@ -25,7 +25,7 @@ class ScholarlyexchangeSpider(scrapy.Spider):
     def start_requests(self):
         #调试
         #meta = {"journal_url": "url"}
-        #url = "https://www.neuroregulation.org/article/view/18786"
+        #url = "https://www.neuroregulation.org/article/view/18189"
         #yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
         #return
 
@@ -68,7 +68,7 @@ class ScholarlyexchangeSpider(scrapy.Spider):
         for author_elem in authors:
             author_name = author_elem.xpath("./span[@class='name']/text()").extract_first().strip()
 
-            affiliation_text = Utils.extract_text_with_xpath(author_elem, "./span[@class='affiliation']/text()")
+            affiliation_text = Utils.extract_text_with_xpath(author_elem, "./span[@class='affiliation']")
 
             if index != 0:
                 author += ";"
