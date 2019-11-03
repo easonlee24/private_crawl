@@ -15,16 +15,24 @@ class OECDSpider(scrapy.Spider):
 
     start_urls = ['http://www.oecd-ilibrary.org/search/advanced']
 
-    def __init__(self, country_file=None, *args, **kwargs):
+    def __init__(self, country_file=None, revised=None, url_file=None, *args, **kwargs):
         super(OECDSpider, self).__init__(*args, **kwargs)
         self.countrys = []
-        for line in open(country_file):
-            country = line.strip().lower()
-            self.countrys.append(country)
+        if country_file is not None:
+            for line in open(country_file):
+                country = line.strip().lower()
+                self.countrys.append(country)
 
         self.download_dir = "oecd_data"
         self.source = "oecd"
         self.source_url = "http://www.oecd-ilibrary.org/"
+
+        self.url_file = url_file
+
+        if revised == "True":
+            self.revised = True
+        else:
+            self.revised = False
 
     """check whether country exist in country_option
 
@@ -39,10 +47,27 @@ class OECDSpider(scrapy.Spider):
         return None
 
     def parse(self, response):
-        #meta = {'theme': 'theme', "country": 'country', 'issue_type': 'issue_type', 'result_count': 11, 'result_url' : 'result_url'}
-        #url = "http://www.oecd-ilibrary.org/development/atlas-of-gender-and-development/zimbabwe_9789264077478-136-en"
-        #yield response.follow(url, self.parse_chapter, meta = meta)
-        #return
+        meta = {'theme': 'theme', "country": 'country', 'issue_type': 'issue_type', 'result_count': 11, 'result_url' : 'result_url'}
+        url = "https://www.oecd-ilibrary.org/governance/oecd-sovereign-borrowing-outlook_23060476"
+        yield response.follow(url, self.parse_book, meta = meta)
+        return
+
+        #if self.revised:
+        #    # 校订
+        #    with open(self.url_file) as f:
+        #        for line in f:
+        #            elem = json.loads(line)
+        #    if issue_type == "Book":
+        #        yield response.follow(link, self.parse_book, meta = meta, dont_filter=True)
+        #    elif issue_type == "Chapter":
+        #        yield response.follow(link, self.parse_chapter, meta = meta, dont_filter=True)
+        #    elif issue_type == "Working/Policy Paper":
+        #        yield response.follow(link, self.parse_working, meta = meta, dont_filter=True)
+        #    elif issue_type == "Article":
+        #        yield response.follow(link, self.parse_article, meta = meta, dont_filter=True)
+
+        #    return
+
         base_url = "http://www.oecd-ilibrary.org/search?form_name=advanced&value1=*&option1=fullText&operator2=AND&value2=&option2=fullText&operator3=AND&value3=&option3=fullText&option4=year_from&value4=2005&option5=year_to&value5=2016&option24=oecd_imprintIGO&value24=&option6=imprint&value6=http%3A%2F%2Foecd.metastore.ingenta.com%2Fcontent%2Fimprint%2Foecd&option7=lang&option8=lang&option9=lang&operator8=OR&operator9=OR&value7=en&value9=&option25=includeResource&option26=includeResource&option27=includeResource&option28=includeResource&option29=includeResource&option30=includeResource&option31=includeResource&option32=includeResource&option33=includeResource&option34=includeResource&option35=includeResource&option36=includeResource&option37=includeResource&option38=includeResource&operator26=OR&operator27=OR&operator28=OR&operator29=OR&operator30=OR&operator31=OR&operator32=OR&operator33=OR&operator34=OR&operator35=OR&operator36=OR&operator37=OR&operator38=OR&value25=BookSeries&value26=Book&value27=Chapter&value31=Article&value37=WorkingPaperSeries&value38=WorkingPaper&value20=18147364%2C15615537&option20=factbooks&option18=sort&value18=&refinelevel=0&option21=discontinued&value21=true&option22=excludeKeyTableEditions&value22=true&isSelectedIGO=true"
         country_options = response.xpath(".//select[@id='restrictions-country-select']/option")
 
