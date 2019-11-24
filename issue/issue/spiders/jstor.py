@@ -8,8 +8,6 @@ from urllib import quote
 
 class JstorSpider(scrapy.Spider):
     name = 'jstor'
-    allowed_domains = ['http://www.emeraldinsight.com/']
-    start_urls = ['http://http://www.emeraldinsight.com//']
 
     """
     有两种工作模式：
@@ -18,7 +16,7 @@ class JstorSpider(scrapy.Spider):
 
     两种模式设置了meta_file文件，都能用来去重
     """
-    def __init__(self, meta_file = None, url_file = None):
+    def __init__(self, meta_file = None, url_file = None, revised = None):
         self.meta_file = meta_file
         self.crawled_url = []
         self.url_file = url_file
@@ -31,6 +29,11 @@ class JstorSpider(scrapy.Spider):
                     #elif "search_url" in json_data:
                     #    self.crawled_url.append(json_data["search_url"])
 
+        if revised == 'True':
+            self.revised = True
+        else:
+            self.revised = False
+
     def start_requests(self):
         #meta = {"search_url" : "search_url"}
         ##书籍
@@ -38,13 +41,16 @@ class JstorSpider(scrapy.Spider):
         ##期刊
         ##yield Request("http://www.jstor.org/stable/40279148?Search=yes&resultItemClick=true&searchText=agriculture&searchText=OR&searchText=agricultural&searchText=OR&searchText=rural&searchUri=%2Faction%2FdoBasicSearch%3Fgroup%3Dnone%26amp%3Bsd%3D2009%252F03%26amp%3BsearchType%3DfacetSearch%26amp%3BQuery%3Dagriculture%2BOR%2Bagricultural%2BOR%2Brural%26amp%3Bpage%3D6%26amp%3Bfc%3Doff%26amp%3Bed%3D2009%252F04%26amp%3Bacc%3Don%26amp%3Bwc%3Don&seq=1#page_scan_tab_contents", self.parse_issue, meta = meta, dont_filter = True)
         #return
+        meta = {"origin_url": "origin_url"}
+        yield Request("https://www.jstor.org/stable/26270352", self.parse_issue, meta = meta, dont_filter = True)
+        return
         if self.url_file:
             #指定了爬取哪些url
             with open(self.url_file) as f:
                 for line in f:
                     json_data = json.loads(line)
-                    if "url" in json_data:
-                        url = json_data["url"]
+                    if "stable_url" in json_data:
+                        url = json_data["stable_url"]
                         if url in self.crawled_url:
                             print "filter url: %s" % url
                         else:
@@ -77,6 +83,8 @@ class JstorSpider(scrapy.Spider):
             current_year = current_year + 1
 
     def parse_issue(self, response):
+        print "parse issue..."
+        print response.xpath("//li[@class='breadcrumb-issue']")
         title = Utils.extract_text_with_xpath(response, "//h1[contains(@class,'title') and contains(@class,'medium-heading')]")
         if title == "":
             #书籍类型
@@ -111,6 +119,8 @@ class JstorSpider(scrapy.Spider):
 
         keywords = Utils.extract_all_text_with_xpath(response, "//div[@class='topics-list mtl']/a", join_str = ",")
 
+        doi = Utils.extract_text_with_xpath(response, "//div[@class='doi']").replace("DOY:", "").strip()
+
         yield {
             "url" : response.url,
             "stable_url" : stable_url,
@@ -127,7 +137,8 @@ class JstorSpider(scrapy.Spider):
             "keywords" : keywords,
             "pdf_url" : pdf_url,
             "meta_type" : meta_type,
-            "publisher" : publisher
+            "publisher" : publisher,
+            "doi": doi
         }
 
     def parse_result_of_date(self, response):

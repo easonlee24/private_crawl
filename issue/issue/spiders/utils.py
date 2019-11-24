@@ -183,6 +183,7 @@ class Utils(object):
         doi = doi.replace("http://doi.org/", "")
         doi = doi.replace("https://doi.org/", "")
         doi = doi.replace("/", "_")
+        #doi = doi.replace("/", "_")
         if doi == "":
             raise Exception("Unexception doi: %s" % doi)
         return doi

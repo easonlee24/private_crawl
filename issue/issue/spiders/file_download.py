@@ -61,6 +61,7 @@ class FileDownload(scrapy.Spider):
             self.save_dir = ""
         else:
             self.save_dir = save_dir
+        print "sae_dir is %s" % save_dir
         self.start_count = int(start_count)
         self.pdf_error_file_write = open("./not_pdf_url", "w")
         self.pdf_error_count = 0
@@ -85,43 +86,55 @@ class FileDownload(scrapy.Spider):
                 if Utils.is_json_string(line):
                     json_data = json.loads(line)
                     try:
-                        if "pdf_path" in json_data:
+                        if "pdf_name" in json_data:
+                            filename = json_data["pdf_name"]
+                        elif "pdf_path" in json_data:
                             filename = json_data["pdf_path"]
                         else:
+
                             if "doi" in json_data:
                                 doi = Utils.format_value(json_data['doi']).replace("DOI:", "").strip()
                                 filename = Utils.doi_to_filname(doi)
                             else:
                                 download_url = json_data["pdf_url"]
-                                filename = "_".join(download_url.split('/')[-2:]) + ".pdf"
+                                filename = "_".join(download_url.split('/')[-1:]) + ".pdf"
                         if not filename.endswith(".pdf"):
                             filename = filename + ".pdf"
                     except Exception as e:
                         self.meta_error = self.meta_error + 1
                         self._print_download_status()
                         continue
-                    download_url = Utils.format_value(json_data['pdf_url'])
+                    try:
+                        if "download_path" not in json_data:
+                            download_url = Utils.format_value(json_data['pdf_url']).replace("+html", "")
+                        else:
+                            download_url = Utils.format_value(json_data['download_path']).replace("+html", "")
+                    except Exception as e:
+                        download_url = Utils.format_value(json_data['pdf_link']).replace("+html", "")
                     #download_url = json_data['pdf_url']
                 else:
                     infos = line.split('|')
                     if len(infos) == 1:
                         download_url = infos[0].replace("full", "pdf")
+                        #filename = download_url.replace("//download/pdf", "").split("/")[-1] + ".pdf"
                         #filename = "_".join(download_url.split('/')[-2:]) + ".pdf"
-                        filename = "_".join(download_url.split('/')[-1:]) + ".pdf"
+                        filename = "_".join(download_url.replace("/download/pdf", "").split('/')[-2:]).replace("?page=search", "") + ".pdf"
                     else:
-                        filename = infos[0]
+                        filename = infos[0].strip()
                         if filename.find("pdf") == -1 and filename.find("txt") == -1:
                             filename = filename + ".pdf"
                         download_url = infos[1].strip()
                 if download_url == '':
                     continue
                 meta = {'filename': filename}
-                pdf_path = filename
                 #print "origin filename: %s" % line
-                pdf_path = pdf_path.replace(":", "_")
+                #filename = filename.replace(":", "_")
                 #pdf_path = pdf_path.replace("/", "_")
                 if self.save_dir != "":
-                    pdf_path = os.path.join(self.save_dir,pdf_path)
+                    pdf_path = os.path.join(self.save_dir, filename)
+                else:
+                    pdf_path = filename
+                    #raise Exception("save dir is empty: %s" % self.save_dir);
 
                 another_pdf_path =  pdf_path.replace("txt", "pdf")
                 if os.path.exists(pdf_path) or os.path.exists(another_pdf_path):
@@ -143,6 +156,7 @@ class FileDownload(scrapy.Spider):
                         download_url = download_url + "?download=true"
                         #time.sleep(random.randint(30,60))
                     #download_url = "https://www.sciencedirect.com" + download_url
+                    download_url = download_url.replace("article/view/", "article/download/")
                     yield Request(download_url, self.download_file, meta = meta, dont_filter=True)
                 except Exception as e:
                     raise Exception(e)
@@ -151,11 +165,12 @@ class FileDownload(scrapy.Spider):
     def download_file(self, response):
         
         filename = response.meta['filename']
-        filename = filename.replace(":", "_")
+        #filename = filename.replace(":", "_")
         #filename = filename.replace("/", "_")
         if self.save_dir != "":
             filename = os.path.join(self.save_dir, filename)
 
+        #print "save to file:%s" % filename
         dirname = os.path.dirname(filename)
         if not os.path.exists(dirname):
             print "make dir: %s" % dirname
@@ -165,6 +180,7 @@ class FileDownload(scrapy.Spider):
         if not self._content_is_pdf(response):
             #下载sciencedirect的时候，发现pdf原始网页打开是一个html，这个html包含了cdn分配的pdf地址
             redict_url = response.xpath("//*[@id='redirect-message']//a/@href")
+            print "content is not pdf"
             if len(redict_url) != 0:
                 redict_url = redict_url.extract_first()
                 meta = {"filename": response.meta['filename']}

@@ -10,7 +10,7 @@ class ChangePdfPath:
 
     Args:
         pdf_path_info: this file contain pdf path info,it's format like following
-            [pdf_uri],[pdf_link],[doi],[xml_uri]
+            [pdf_uri],[pdf_link],[doi],[xml_uri],[access_url]
 
         pdf_save_dir: current pdf dir that save pdf
 
@@ -27,24 +27,54 @@ class ChangePdfPath:
         with open(self.pdf_path_info) as fp:
             for line in fp:
                 line =  line.strip()
-                pdf_path_infos = line.split(',')
+                pdf_path_infos = line.split('|')
 
-                pdf_uri = pdf_path_infos[0]
-                pdf_download_url = pdf_path_infos[1]
-                doi = pdf_path_infos[2]
-                xml_uri = pdf_path_infos[3]
+                pdf_uri = pdf_path_infos[0].strip()
+                pdf_download_url = pdf_path_infos[1].strip()
+                doi = pdf_path_infos[2].strip()
+                xml_uri = pdf_path_infos[3].strip()
+                access_url = pdf_path_infos[4].strip()
 
-                print "doi :%s" % doi
-
-                target_pdf_dir = os.path.dirname(xml_uri.replace("./xml_result", self.xml_result_dir))
+                xml_uri = xml_uri.replace(":", "_")
+                target_pdf_dir = os.path.dirname(xml_uri.replace("xml_result", self.xml_result_dir))
                 target_pdf_path = target_pdf_dir + "/" + pdf_uri
+
+                if os.path.exists(target_pdf_path):
+                    #print "%s already exist" % target_pdf_path
+                    continue
 
                 old_pdf_save_path = self.old_pdf_save_dir + "/" + doi.replace("/", "_") + ".pdf"
 
+                pdf_exist = True
                 if (not os.path.exists(old_pdf_save_path)):
+                    #doi只取后面的部分
+                    #old_pdf_save_path = self.old_pdf_save_dir + "/" + doi.split("/")[1] + ".pdf"
+                    old_pdf_save_path = self.old_pdf_save_dir + "/" + "_".join(doi.split("/")[-1:])+ ".pdf"
+                    #pensoft的pdf命名方式有点独特
+                    #old_pdf_save_path = self.old_pdf_save_dir + "/" + pdf_download_url.split("/")[-4] + ".pdf"
+                    if  not os.path.exists(old_pdf_save_path):
+                        ##有的时候oa的保存路径就是Files/xxx
+                        #old_pdf_save_path = self.old_pdf_save_dir + "/" + pdf_uri
+                        #if not os.path.exists(old_pdf_save_path):
+                        #    old_pdf_save_path = self.old_pdf_save_dir + "/Files/" + pdf_download_url.split("/")[-1]
+                        #    if not old_pdf_save_path.endswith(".pdf"):
+                        #        old_pdf_save_path = old_pdf_save_path + ".pdf"
+                        #    if not os.path.exists(old_pdf_save_path):
+                        #        pdf_exist = False
+                        xml_result_dir = self.xml_result_dir.split("\\")
+                        #print xml_result_dir
+                        xml_result_dir[-2] = xml_result_dir[-2] + "_1"
+                        xml_result_dir = "\\".join(xml_result_dir)
+                        #old_pdf_save_path = os.path.dirname(xml_uri.replace("xml_result", xml_result_dir))
+                        #old_pdf_save_path = old_pdf_save_path + "/" + pdf_uri
+                        if not os.path.exists(old_pdf_save_path):
+                            pdf_exist = False
+
+                if not pdf_exist:
                     non_exist_count = non_exist_count + 1
-                    print "not exist: %s" % old_pdf_save_path
+                    print "not exist: %s, doi :%s, pdf: %s" % (old_pdf_save_path, doi, pdf_download_url)
                     miss_info = "%s|%s" % (target_pdf_path, pdf_download_url)
+                    #miss_info = "%s" % access_url
                     self.miss_file_writer.write(miss_info)
                     self.miss_file_writer.write("\n")
                 else:
@@ -53,7 +83,8 @@ class ChangePdfPath:
                     dir = os.path.dirname(target_pdf_path)
                     if (not os.path.exists(dir)):
                         os.makedirs(dir)
-                    #shutil.copy(old_pdf_save_path, target_pdf_path)
+                    if not os.path.exists(target_pdf_path):
+                        shutil.copy(old_pdf_save_path, target_pdf_path)
 
         print "exist_count :%d, non_exist_count :%d" % (exist_count, non_exist_count)
         self.miss_file_writer.close()

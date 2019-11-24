@@ -25,23 +25,35 @@ class PDFBrowserDownloader:
         exist_count = 0
         download_count = 0
         with open(self.url_file) as f:
+            index = 0
             for line in f:
+                index = index + 1
+                if index <= 5000:
+                    continue
+
                 line = line.strip()
                 url = line.replace("full", "pdf")
 
                 filename = url.split("/")[-1]
                 filepath = self.sava_dir + "\\" + filename + ".pdf"
+
+                filename2 = (url.split("/")[-2] + "_" + url.split("/")[-1]) + ".pdf"
+                filepath2 = "D:\chenlu\Sea\Emerald" + "\\" + filename2
                 if os.path.exists(filepath):
                     exist_count = exist_count + 1
                     print "%s exits, now exist count is :%d, download count is %d" % (filepath, exist_count, download_count)
                     continue
+                elif os.path.exists(filepath2):
+                    exist_count = exist_count + 1
+                    print "%s exits, now exist count is :%d, download count is %d" % (filepath2, exist_count, download_count)
+                    continue
 
                 download_count = download_count + 1
-                print "%s not exists, start to get %s, now exist count is %d, download count is: %d" % (filepath, url, exist_count, download_count)
+                print "%s not exists, start to get %s, now exist count is %d, download count is: %d" % (filepath2, url, exist_count, download_count)
 
                 url = url + "?download=true"
                 self.driver.get(url)
-                time.sleep(random.randint(30, 60))
+                time.sleep(random.randint(10, 15))
 
                 #working with shadow root: https://stackoverflow.com/questions/28911799/accessing-elements-in-the-shadow-dom
                 #self.wait.until(EC.visibility_of_element_located((By.XPATH, "//*[@id='toolbar'']")))
