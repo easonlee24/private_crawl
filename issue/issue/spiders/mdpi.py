@@ -25,7 +25,7 @@ class MdpiSpider(scrapy.Spider):
     def start_requests(self):
         # 调试
         #meta = {"journal_url": "url"}
-        #url = "https://www.mdpi.com/2073-4433/9/10/401"
+        #url = "https://www.mdpi.com/2079-3200/7/3/20"
         #yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
         #return
 
@@ -51,6 +51,16 @@ class MdpiSpider(scrapy.Spider):
             meta = {"journal_url": response.meta["journal_url"]}
             yield Request(url, self.crawl_issue, meta = meta)
 
+        if len(issues) == 0:
+            #另一种格式，比如:https://www.mdpi.com/2079-8954/7
+            issues = response.xpath("//div[@class='ul-spaced']//li")
+            for issue in issues:
+                url = urlparse.urljoin(response.url, issue.xpath("./a/@href").extract_first())
+                meta = {"journal_url": response.meta["journal_url"]}
+                yield Request(url, self.crawl_issue, meta = meta)
+                
+
+
     def crawl_issue(self, response):
         issues = response.xpath(".//a[@class='title-link']")
         for issue in issues:
@@ -67,6 +77,8 @@ class MdpiSpider(scrapy.Spider):
         author = ""
         for author_elem in authors:
             author_name = author_elem.xpath("./a[@itemprop='author']/text()").extract_first()
+            if author_name is None:
+                author_name = author_elem.xpath("./span/a/text()").extract_first()
             try:
                 sup = author_elem.xpath("./sup/text()").extract_first().strip()
             except Exception as e:
@@ -76,7 +88,9 @@ class MdpiSpider(scrapy.Spider):
 
             # 有可能没有作者机构
             sup = Utils.format_oa_sup(sup)
-            if sup != "":
+            if sup == "*":
+                author += "%s^%s" % (author_name, "*1")
+            elif sup != "":
                 author += "%s^%s" % (author_name, sup)
             else:
                 author += "%s^%s" % (author_name, "1")

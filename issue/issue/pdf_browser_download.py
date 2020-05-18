@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+@date 2020-05-25
+@brief 有些pdf文件不能用scrapy直接爬取，需要使用浏览器打开然后自动保存为pdf文件
+
+@note 本文件中的方法亲测在mac下不适用
+"""
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -7,66 +13,80 @@ import time
 import sys
 import os
 import random
+import json
+import shutil
 
 class PDFBrowserDownloader:
     def __init__(self, url_file, save_dir):
         self.url_file = url_file
         self.sava_dir = save_dir
-        options = webdriver.ChromeOptions()
-        profile = {"plugins.plugins_list": [{"enabled": False, "name": "Chrome PDF Viewer"}],
-                   "download.default_directory": self.sava_dir,
-                   "download.extensions_to_open": ""}
-        options.add_experimental_option("prefs", profile)
-        self.driver = webdriver.Chrome(
-            executable_path='C:\Program Files (x86)\Google\Chrome\Application\chromedriver.exe', chrome_options=options)
-        self.wait = WebDriverWait(self.driver, 15)
 
     def download(self):
         exist_count = 0
         download_count = 0
         with open(self.url_file) as f:
+            index = 0
             for line in f:
-                line = line.strip()
-                url = line.replace("full", "pdf")
+                index = index + 1
 
-                filename = url.split("/")[-1]
-                filepath = self.sava_dir + "\\" + filename + ".pdf"
-                if os.path.exists(filepath):
+                line = line.strip()
+                json_data = json.loads(line)
+
+                url = json_data["pdf_url"]
+                filename = json_data["pdf_path"]
+                if "pdf_save_dir" in json_data:
+                    filename = os.path.join(json_data["pdf_save_dir"], filename)
+
+                #不包含pdf结尾的文件
+                filepath = os.path.join(self.sava_dir, filename)
+                targer_file = filepath + ".pdf"
+
+                if os.path.exists(targer_file):
                     exist_count = exist_count + 1
-                    print "%s exits, now exist count is :%d, download count is %d" % (filepath, exist_count, download_count)
+                    print "%s exits, now exist count is :%d, download count is %d" % (targer_file, exist_count, download_count)
                     continue
 
                 download_count = download_count + 1
-                print "%s not exists, start to get %s, now exist count is %d, download count is: %d" % (filepath, url, exist_count, download_count)
+                print "%s not exists, start to get %s, now exist count is %d, download count is: %d" % (targer_file, url, exist_count, download_count)
 
-                url = url + "?download=true"
-                self.driver.get(url)
-                time.sleep(random.randint(30, 60))
+                self._download(url, filepath)
 
-                #working with shadow root: https://stackoverflow.com/questions/28911799/accessing-elements-in-the-shadow-dom
-                #self.wait.until(EC.visibility_of_element_located((By.XPATH, "//*[@id='toolbar'']")))
-                #time.sleep(10)
+    def _download(self, url, filepath):
+        options = webdriver.ChromeOptions()
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
 
-                ##root1 = self.driver.find_element_by_xpath("//*[@id='toolbar']")
-                #root1 = self.driver.find_element_by_id("toolbar")
-                #shadow_root1 = self._expand_shadow_element(root1)
-                #shadow_root1.find_element_by_xpath("//*[@id='download']").click()
+        options.add_experimental_option('prefs', {
+            "download.default_directory": filepath,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "plugins.always_open_pdf_externally": True
+        })
+        self.driver = webdriver.Chrome(
+            executable_path='C:\Program Files (x86)\Google\Chrome\Application\chromedriver.exe', chrome_options=options)
+        self.driver.get(url)
+        pdf_download_success = False
+        while(not pdf_download_success):
+            print "downloading...check"
+            files = os.listdir(filepath)
+            for file in files:
+                if os.path.splitext(file)[1] == ".pdf":
+                    pdf_download_success = True
+                    break;
+            time.sleep(1)
 
-                #root2 = self.driver.find_element_by_xpath((By.XPATH, "//*[@id='download']"))
+        print "download %s success" % filepath
+        self.driver.close()
 
-    def _wait_and_click(self, xpath):
-        self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
-        try:
-            self.driver.find_element_by_xpath(xpath).click()
-        except Exception as e:
-            time.sleep(5)
-            self.driver.find_element_by_xpath(xpath).click()
-
-    def _expand_shadow_element(self, element):
-        shadow_root = driver.execute_script('return arguments[0].shadowRoot', element)
-        return shadow_root
-
-
+        #下载完以后，把文件move
+        files = os.listdir(filepath)
+        for file in files:
+            if os.path.splitext(file)[1] == ".pdf":
+                oldfile = os.path.join(filepath, file)
+                newfile = filepath + ".pdf"
+                print "download finish, move temp file %s to target file %s" % (oldfile, newfile)
+                shutil.move(oldfile, newfile)
+                shutil.rmtree(filepath)
 
 if __name__ == "__main__":
     url_file = sys.argv[1]
