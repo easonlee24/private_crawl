@@ -51,7 +51,7 @@ class Utils(object):
     """
     @staticmethod
     def get_all_inner_texts(response, xpath, split_char = '\n'):
-        if xpath is None:
+        if xpath is None or xpath == "":
             elems = [response]
         else:
             elems = response.xpath(xpath)
@@ -74,7 +74,7 @@ class Utils(object):
 
     @staticmethod
     def remove_separator(origin):
-        return origin.replace("\n", "").replace("\t", "").strip()
+        return origin.replace("\n", "").replace("\t", "").replace(",", "").strip()
 
     @staticmethod
     def _select_element_by_content_inner(response, xpath, selected_content):
@@ -473,7 +473,7 @@ class Utils(object):
     @staticmethod
     def is_valid_affliation(affiliation, origin_blacklist = None):
         affiliation = affiliation.replace("\n", "").strip()
-        blacklist = ["Corresponding Author", "Email"]
+        blacklist = ["Corresponding Author", "Email", "email", "Correspondence", "http"]
         blacklist.extend(origin_blacklist)
         if affiliation == "":
             return False;

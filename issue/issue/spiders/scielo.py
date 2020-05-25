@@ -29,8 +29,8 @@ class Scielo(scrapy.Spider):
             self.revised = False
 
     def start_requests(self):
-        #url = "http://www.scielo.br/scielo.php?script=sci_arttext&pid=S0104-06182019000200541&lng=en&nrm=iso&tlng=pt"
-        #meta = {"volume": "", "issue": "ahead of print", "journal_url": "journal_url", "year": 1}
+        #url = "http://www.scielo.br/scielo.php?script=sci_arttext&pid=S0103-507X2019000100106&lng=en&nrm=iso&tlng=pt"
+        #meta = {"volume": "42", "issue": "42", "journal_url": "journal_url", "year": 1}
         #yield Request(url, self.crawl_issue_info, meta = meta)
         #return
 
@@ -112,7 +112,7 @@ class Scielo(scrapy.Spider):
 
             elems = affiliation.split(' ')
             auth_sup = elems[0]
-            auth_name = "".join(elems[1:])
+            auth_name = " ".join(elems[1:])
             auth_institution += "%s^%s" % (auth_name, auth_sup)
             index += 1
 
@@ -126,10 +126,11 @@ class Scielo(scrapy.Spider):
             volume = Utils.regex_extract(meta_info, "vol.(\d+)")
 
         # issue可能是ahead of print, 尝试修正一下。
+        # volume和issue相同时，表示上一层爬错了。修正版本时需要重爬一下。
         issue = response.meta['issue']
-        if issue == 'ahead of print':
+        if issue == 'ahead of print' or volume == issue:
             meta_info = response.xpath("//h3/text()").extract_first()
-            issue = Utils.regex_extract(meta_info, "vol.*no.(\d+)")
+            issue = Utils.regex_extract(meta_info, "no.(\d+)")
 
         yield {
             "article_title": article_title,
@@ -189,14 +190,19 @@ class Scielo(scrapy.Spider):
                     abstract_text = Utils.get_all_inner_texts(abstract_elem, "./following-sibling::p[1]").replace("Abstract:", "").strip()
                 except Exception as e:
                     abstract_text = Utils.get_all_inner_texts(response, "//div[@class='abstract']").strip()
+            try:
+                #把关键词去掉
+                abstract_text = abstract_text[0: abstract_text.index("Descritores:")]
+            except Exception as e:
+                pass
             return abstract_text
         except Exception as e:
             return ""
 
     def get_keyword(self, response):
         try:
-            keyword_elem = Utils.select_element_by_content(response, "//div[contains(@class, 'index')]//p", "Keywords|Index terms|Key words|PALAVRAS-CHAVE|Key-Words")
-            keyword_text = ";".join(keyword_elem.xpath(".//text()").extract()).replace("Keywords:", "").replace("Key words", "").replace("Key-Words", "").replace("PALAVRAS-CHAVE", "").strip(";")
+            keyword_elem = Utils.select_element_by_content(response, "//div[contains(@class, 'index')]//p", "Keywords|Index terms|Key words|PALAVRAS-CHAVE|Key-Words|Descritores")
+            keyword_text = ";".join(keyword_elem.xpath(".//text()").extract()).replace("Keywords:", "").replace("Key words", "").replace("Key-Words", "").replace("PALAVRAS-CHAVE", "").replace("Descritores", "").replace("Index terms", "").strip(";")
             keyword_text = ";".join([i.strip() for i in keyword_text.split(";") if i.strip() != "" and i.strip() != ":"])
         except Exception as e:
             return ""
@@ -255,21 +261,22 @@ class Scielo(scrapy.Spider):
                 text = str(text)
                 if text >= 'a' and text <= 'z':
                     text = ord(text) - ord('a') + 1
-
-                if text == "*":
-                    text = 1
-                elif text == "**":
-                    text = 2
-                elif text == "***":
-                    text = 3
-                elif text == "****":
-                    text = 4
-                elif text == "*****":
-                    text = 5
-                elif text == "******":
-                    text = 6
                 format_elems.append(str(text))
-            format_author_sup.append(",".join(format_elems))
+            author_sup = ",".join(format_elems)
+            if author_sup == "*":
+                author_sup = 1
+            elif author_sup == "**":
+                author_sup = 2
+            elif author_sup == "***":
+                author_sup = 3
+            elif author_sup == "****":
+                author_sup = 4
+            elif author_sup == "*****":
+                author_sup = 5
+            elif author_sup == "******":
+                author_sup = 6
+
+            format_author_sup.append(author_sup)
                 
         return format_author_sup
 

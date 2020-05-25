@@ -48,8 +48,14 @@ def download_file(index, link, filename):
         chromeOptions.add_experimental_option("prefs", prefs)
         driver = webdriver.Chrome(executable_path='/Users/baidu/Desktop/chromedriver', chrome_options=chromeOptions)
         chromeOptions.add_argument("download.default_directory=%s" % download_dir)
-        driver.get(link)
-        print "load success"
+        driver.set_page_load_timeout(10)
+        try:
+            driver.get(link)
+            print "load success"
+        except TimeoutException as e:
+            print "load timeout, continue download"
+            driver.execute_script("window.stop()")
+            
         wait = WebDriverWait(driver, 30)
         wait.until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, "//iframe[@class='rc-reader-frame']")))
 
@@ -91,7 +97,8 @@ def download_file_with_retry(index, link, filename, max_retry):
 
 with open(filename) as fp:
     index = 0
-    pool = ThreadPoolExecutor(max_workers=10)
+    worker = 3
+    pool = ThreadPoolExecutor(max_workers=worker)
     index = 0
     for line in fp:
         index = index + 1
@@ -112,4 +119,4 @@ with open(filename) as fp:
             print "illegal pdf link: %s" % link
             continue
         filename = "_".join(link.split('/')[-1:]) + ".pdf"
-        pool.submit(download_file_with_retry, index, link, filename, 3)
+        pool.submit(download_file_with_retry, index, link, filename, worker)

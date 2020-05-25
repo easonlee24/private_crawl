@@ -20,7 +20,7 @@ class IssueSpider(CrawlSpider):
     #            yield Request(request_url, self.parse_journal_wiley, dont_filter=True)
 
     start_urls = [
-        #'http://jvi.asm.org/content/by/year',
+        'http://jvi.asm.org/content/by/year',
         #'http://aem.asm.org/content/by/year',
         #'http://jb.asm.org/content/by/year',
         #'http://mmbr.asm.org/content/by/year',
@@ -41,7 +41,7 @@ class IssueSpider(CrawlSpider):
         #'http://www.tandfonline.com/loi/kwrm20',
         #'http://www.tandfonline.com/loi/kspe20'
         #'http://www.wageningenacademic.com/loi/qas'
-        'http://www.wageningenacademic.com/loi/jiff',
+        #'http://www.wageningenacademic.com/loi/jiff',
         #'http://onlinelibrary.wiley.com/doi/10.1111/gtc.2017.22.issue-8/issuetoc'
         #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1365-2435/issues',
         #'http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1469-8137/issues',
@@ -60,7 +60,7 @@ class IssueSpider(CrawlSpider):
 
     rules = (
         # Extract links matching 'item.php' and parse them with the spider's method parse_item
-        Rule(LinkExtractor(allow=('jvi.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
+        Rule(LinkExtractor(allow=('jvi.asm.org/content/\d+/\d+/\w+-\w+$', )), callback='parse_issue'),
         Rule(LinkExtractor(allow=('aem.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
         Rule(LinkExtractor(allow=('jb.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
         Rule(LinkExtractor(allow=('mmbr.asm.org/content/vol\d+/issue\d+/index.dtl$', )), callback='parse_issue'),
@@ -82,11 +82,11 @@ class IssueSpider(CrawlSpider):
 #			deny=('jvi.asm.org/content/.*[+=&?#]', 'jvi.asm.org/content/.*full$', 'jvi.asm.org/content/.*figures-only$', 'jvi.asm.org/content/.*abstract'))),
 #
         Rule(LinkExtractor(allow=(
-                '.*jvi.asm.org/content/by/year/201[7-8]$', #92
-                '.*aem.asm.org/content/by/year/201[7-8]$', #92
-                '.*jb.asm.org/content/by/year/201[7-8]$', #92
-                '.*mmbr.asm.org/content/by/year/201[7-8]$', #92
-                '.*mcb.asm.org/content/by/year/201[7-8]$' #92
+                '.*jvi.asm.org/content/by/year/201[7-9]$', #92
+                '.*aem.asm.org/content/by/year/201[7-9]$', #92
+                '.*jb.asm.org/content/by/year/201[7-9]$', #92
+                '.*mmbr.asm.org/content/by/year/201[7-9]$', #92
+                '.*mcb.asm.org/content/by/year/201[7-9]$' #92
             ))),
 
         Rule(LinkExtractor(allow=(

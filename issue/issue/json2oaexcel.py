@@ -87,8 +87,6 @@ class Json2OAExcel:
                 #添加其他的字段
                 journal_name = self.journal_url_to_name[json_data["journal_url"]]
                 journal_meta = self.all_journal_meta[journal_name]
-                print "journal_url: %s"  % json_data["journal_url"]
-                print journal_meta
 
                 json_data['source_id'] = journal_meta["system_id"]
                 json_data['database_id'] = journal_meta["source_id"]
