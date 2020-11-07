@@ -35,7 +35,8 @@ class MdpiSpider(scrapy.Spider):
                 yield Request(line.strip(), self.crawl_homepage, meta = meta, dont_filter=True)
 
     def crawl_homepage(self, response):
-        journals = response.xpath("//div[@class='show-for-large-up']//li[@class='side-menu-li']/a")
+        journals = response.xpath("//div[@class='show-for-medium-up']//li[@class='side-menu-li']/a")
+        print journals
         for journal in journals:
             link_text = journal.xpath("./text()").extract_first().strip()
             year = Utils.regex_extract(link_text, "Vol.*\((\d+)\).*")
