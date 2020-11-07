@@ -28,8 +28,8 @@ class AsmSpider(scrapy.Spider):
     def start_requests(self):
         #调试
         #meta = {"journal_url": "url", "year": "2019"}
-        #url = "https://jb.asm.org/content/201/1/masthead-201-1"
-        #yield Request(url, self.crawl_title, meta = meta, dont_filter=True)
+        #url = "https://jvi.asm.org/content/83/10"
+        #yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
         #return
 
         with open(self.url_file, "rb") as f:
@@ -52,6 +52,8 @@ class AsmSpider(scrapy.Spider):
                 continue
 
             if year >= self.start_year:
+                if year == '2020':
+                    return
                 meta = {"journal_url": response.meta["journal_url"], "year": year}
                 yield Request(url, self.crawl_issue, meta = meta)
 
@@ -81,8 +83,9 @@ class AsmSpider(scrapy.Spider):
         except Exception as e:
             author_text = ""
 
-        doi_elem = Utils.select_element_by_content(response, "//div[@class='pane-content']", "DOI")
+        doi_elem = Utils.select_element_by_content(response, "//strong", "DOI:").xpath("..")
         doi = Utils.replcace_not_ascii(Utils.get_all_inner_texts(doi_elem, "").replace("DOI", ""), "")
+
         download_path = urlparse.urljoin(response.url, response.xpath("//a[@data-trigger='full-text.pdf']/@href").extract_first())
 
         volume = Utils.regex_extract(response.url, "content/(\d+)")

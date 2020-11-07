@@ -30,8 +30,8 @@ class WileySpider(scrapy.Spider):
     def start_requests(self):
         #调试
         #meta = {"journal_url": "url"}
-        #url = "https://www.embopress.org/doi/10.15252/msb.20188777"
-        #yield Request(url, self.crawl_issue_info_2, meta = meta, dont_filter=True)
+        #url = "https://www.embopress.org/doi/abs/10.15252/embj.2020104997"
+        #yield Request(url, self.crawl_issue_info, meta = meta, dont_filter=True)
         #return
 
         with open(self.url_file, "rb") as f:
@@ -45,19 +45,29 @@ class WileySpider(scrapy.Spider):
                 else:
                     meta = {"journal_url": line.strip()}
                     # case1: http://onlinelibrary.wiley.com/journal/10.1111/(ISSN)1474-9726 change to : https://onlinelibrary.wiley.com/loi/14749726
-                    journal_id = Utils.regex_extract(line.strip(), "\(ISSN\)(\d+)-([\dX]+)")
+                    journal_id = Utils.regex_extract(line.strip(), "\(ISSN\)(\d+)-([\dXx]+)")
 
                     # case2: https://besjournals.onlinelibrary.wiley.com/journal/13652656 change to: ttps://onlinelibrary.wiley.com/loi/13652656
                     # (不用担心host是besjournals.onlinelibrary.wiley.com，把host改为onlinelibrary.wiley.com会自动重定向的)
                     if journal_id == "":
-                        journal_id = Utils.regex_extract(line.strip(), "journal/([\dX]+)")
+                        journal_id = Utils.regex_extract(line.strip(), "journal/([\dXx]+)")
                     if journal_id == "":
-                        journal_id = Utils.regex_extract(line.strip(), "loi/([\dX]+)")
+                        journal_id = Utils.regex_extract(line.strip(), "loi/([\dXx]+)")
                     journal_issue_url = "http://onlinelibrary.wiley.com/loi/%s" % journal_id
-                    yield Request(journal_issue_url, self.crawl_homepage, meta = meta, dont_filter=True)
+
+                    years = range(int(self.start_year), 2021)
+                    for year in years:
+                        # 20200919 embopress.org补采, url规则比较特殊
+                        #yield Request("%s/group/d2010.y%s" % (journal_issue_url, year), self.crawl_homepage, meta = meta, dont_filter=True)
+                        yield Request("%s/year/%s" % (journal_issue_url, year), self.crawl_homepage, meta = meta, dont_filter=True)
 
     def crawl_homepage(self, response):
+        meta = {"journal_url": response.meta["journal_url"]}
+        yield Request(response.url, self.crawl_journal, meta = meta)
+        return
+
         journals = response.xpath("//ul[@class='rlist loi__list']/li")
+        journals = response.xpath("//[@class='rlist loi__list']/li")
         for journal in journals:
             link_text = Utils.extract_text_with_xpath(journal, "./a/span")
             year = Utils.regex_extract(link_text, "(\d+) - Volume")
@@ -87,7 +97,7 @@ class WileySpider(scrapy.Spider):
             if url == response.url:
                 url = urlparse.urljoin(response.url, issue.xpath(".//a/@href").extract_first())
             meta = {"journal_url": response.meta["journal_url"]}
-            yield Request(url, self.crawl_issue_info_2, meta = meta)
+            yield Request(url, self.crawl_issue_info, meta = meta)
 
     def crawl_issue_info(self, response):
         article_title = Utils.get_all_inner_texts(response, ".//h1[@class='citation__title']")
@@ -95,8 +105,9 @@ class WileySpider(scrapy.Spider):
         doi = response.xpath("//a[@class='epub-doi']/@href").extract_first()
         if doi is None:
             #另一个case
-            print "....hehe....."
-            self.crawl_issue_info_2(response)
+            print "....hehea....."
+            meta = {"journal_url": response.meta["journal_url"]}
+            yield Request(response.url, self.crawl_issue_info_2, meta = meta)
             return
 
         #作者和作者机构
@@ -156,10 +167,12 @@ class WileySpider(scrapy.Spider):
 
             index +=1
 
-        source_year = Utils.extract_text_with_xpath(response, "//span[@class='epub-date']").split()[-1]
+        source_year = Utils.extract_text_with_xpath(response, "//p[@class='volume-issue']/following-sibling::p")
         volume_issue = response.xpath("//p[@class='volume-issue']//span[@class='val']")
         source_volume = volume_issue[0].xpath("./text()").extract_first().strip()
         source_issue = volume_issue[1].xpath("./text()").extract_first().strip()
+        print volume_issue
+        print source_volume
         article_abstract = Utils.get_all_inner_texts(response, ".//div[@class='abstract-group']").replace("Abstract", "").strip()
         if article_abstract == "":
             # 质检发现有些abstract是空的
@@ -169,7 +182,7 @@ class WileySpider(scrapy.Spider):
             except Exception as e:
                 pass
         #(TODO:lizhen05) keyword获取不到，要动态获取。
-        keyword = Utils.extract_all_text_with_xpath(response, "//section[@class='keywords']/li/a")
+        keyword = ";".join([elem.strip() for elem in response.xpath(".//meta[@name='citation_keywords']/@content").extract()]).strip()
         file_path = response.url
         process_date = Utils.current_date()
         download_path = urlparse.urljoin(response.url, response.xpath("//div[contains(@class, 'PdfLink')]/a/@href").extract_first())
@@ -207,11 +220,12 @@ class WileySpider(scrapy.Spider):
             "article_lpage" : article_lpage,
             "article_page_range" : article_page_range,
             "article_page_count" : article_page_count,
-            "author_email": email_address.strip(";")
+            "author_email": email_address.strip(";"),
+            "keyword": keyword
         }
 
     def crawl_issue_info_2(self, response):
-        print "-----here-------"
+        print "anthoer format"
         #另一个格式: jourlnal:https://www.embopress.org/loi/17574684, issue: https://www.embopress.org/doi/10.15252/msb.20188777
         article_title = Utils.get_all_inner_texts(response, ".//h1[@class='citation__title']")
         authors = response.xpath(".//div[@class='accordion-tabbed']/div")
@@ -265,6 +279,8 @@ class WileySpider(scrapy.Spider):
         file_path = response.url
         process_date = Utils.current_date()
         download_path = urlparse.urljoin(response.url, response.xpath("//div[@class='article-action']/a[contains(@aria-label, 'PDF')]/@href").extract_first())
+
+        print "----here a--------"
         
         #页面
         page_info = Utils.get_all_inner_texts(response, "//p[@class='page-range']")
@@ -282,7 +298,6 @@ class WileySpider(scrapy.Spider):
             article_page_range = ""
             article_page_count = ""
 
-
         yield {
             "article_title" : article_title,
             "author": author,
@@ -299,5 +314,5 @@ class WileySpider(scrapy.Spider):
             "article_fpage" : article_fpage,
             "article_lpage" : article_lpage,
             "article_page_range" : article_page_range,
-            "article_page_count" : article_page_count,
+            "article_page_count" : article_page_count
         }

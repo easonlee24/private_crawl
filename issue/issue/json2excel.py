@@ -52,7 +52,7 @@ if __name__ == '__main__':
         for line in fp:
             try:
                 strlen = len(line)
-                if strlen > 32672:
+                if strlen > 326720000:
                     print "unexcept str len %d:" % strlen 
                     continue
                 json_date = json.loads(line)
@@ -65,6 +65,8 @@ if __name__ == '__main__':
                 column_data = json_date.get(k, "")
                 if type(column_data) is list:
                     column_data = "".join(filter(None, column_data))
+                if len(column_data) > 32672:
+                    column_data = ""
                 data.append(column_data)
             dataList.append(data)
     write_excel(dataList, row0, savepath)
